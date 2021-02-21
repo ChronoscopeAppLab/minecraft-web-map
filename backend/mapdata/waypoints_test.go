@@ -1,3 +1,5 @@
+// Copyright (C) 2021 Chronoscope. All rights reserved.
+
 package mapdata
 
 import "testing"
