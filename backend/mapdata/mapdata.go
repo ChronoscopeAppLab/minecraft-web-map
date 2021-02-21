@@ -1,11 +1,14 @@
 package mapdata
 
+import "log"
+
 var waypoints []Waypoint
 var metadataPath string
 
 func ReloadMetadata() error {
+	log.Println("Reloading metadata...")
+
 	colorDef, err := loadColors()
-	_ = colorDef
 	if err != nil {
 		return err
 	}
@@ -14,8 +17,9 @@ func ReloadMetadata() error {
 	if err != nil {
 		return err
 	}
-
 	waypoints = waypointDef
+
+	log.Println("Reloading metadata... Done")
 
 	return nil
 }
