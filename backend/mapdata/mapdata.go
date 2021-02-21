@@ -9,21 +9,18 @@ import (
 	"github.com/ChronoscopeAppLab/minecraft-web-map/backend/env"
 )
 
-var (
-	waypoints [3][]Waypoint
-	metadataPath string
-)
+var waypoints [3][]Waypoint
 
 func ReloadMetadata() error {
 	log.Println("Reloading metadata...")
 
-	colorDef, err := loadColors()
+	colorDef, err := loadColors(filepath.Join(env.MetadataPath, "colors.txt"))
 	if err != nil {
 		return err
 	}
 
 	for i, dimen := range env.Dimensions {
-		waypointDir := filepath.Join(metadataPath, "waypoints", dimen)
+		waypointDir := filepath.Join(env.MetadataPath, "waypoints", dimen)
 		waypointDef, err := loadWaypoints(colorDef, waypointDir)
 		if err != nil {
 			return err
@@ -34,8 +31,4 @@ func ReloadMetadata() error {
 	log.Println("Reloading metadata... Done")
 
 	return nil
-}
-
-func SetMetadataPath(path string) {
-	metadataPath = path
 }

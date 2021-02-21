@@ -8,7 +8,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"path/filepath"
 	"strings"
 )
 
@@ -112,10 +111,10 @@ func readColorDef(line string) (string, string, error) {
 	return name, spec, nil
 }
 
-func loadColors() (map[string]string, error) {
+func loadColors(path string) (map[string]string, error) {
 	log.Println("Loading colors.txt...")
 
-	colorsFile, err := os.Open(filepath.Join(metadataPath, "colors.txt"))
+	colorsFile, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}

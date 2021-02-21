@@ -7,27 +7,24 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/ChronoscopeAppLab/minecraft-web-map/backend/env"
 	"github.com/ChronoscopeAppLab/minecraft-web-map/backend/mapdata"
 )
 
 func main() {
-	var debugMode bool
-	var metadataPath string
-	flag.BoolVar(&debugMode, "debug", false, "Run server in debug mode.")
-	flag.StringVar(&metadataPath, "metadata-path", "../mapmeta",
+	flag.BoolVar(&env.Debug, "debug", false, "Run server in debug mode.")
+	flag.StringVar(&env.MetadataPath, "metadata-path", "../mapmeta",
 		"Path to map metadata.")
 	flag.Parse()
 
-	if debugMode {
+	if env.Debug {
 		fmt.Println("Back-end is debug mode")
 	} else {
 		fmt.Println("Back-end is production mode")
 	}
 
-	mapdata.SetMetadataPath(metadataPath)
-
 	if err := mapdata.ReloadMetadata(); err != nil {
 		log.Fatalf("Failed to load map metadata from %s: %s\n",
-			metadataPath, err)
+			env.MetadataPath, err)
 	}
 }
