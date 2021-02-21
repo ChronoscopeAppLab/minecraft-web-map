@@ -1,9 +1,18 @@
+// Copyright (C) 2021 Chronoscope. All rights reserved.
+
 package mapdata
 
-import "log"
+import (
+	"log"
+	"path/filepath"
 
-var waypoints []Waypoint
-var metadataPath string
+	"github.com/ChronoscopeAppLab/minecraft-web-map/backend/env"
+)
+
+var (
+	waypoints [3][]Waypoint
+	metadataPath string
+)
 
 func ReloadMetadata() error {
 	log.Println("Reloading metadata...")
@@ -13,11 +22,14 @@ func ReloadMetadata() error {
 		return err
 	}
 
-	waypointDef, err := loadWaypoints(colorDef)
-	if err != nil {
-		return err
+	for i, dimen := range env.Dimensions {
+		waypointDir := filepath.Join(metadataPath, "waypoints", dimen)
+		waypointDef, err := loadWaypoints(colorDef, waypointDir)
+		if err != nil {
+			return err
+		}
+		waypoints[i] = waypointDef
 	}
-	waypoints = waypointDef
 
 	log.Println("Reloading metadata... Done")
 

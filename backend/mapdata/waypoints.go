@@ -219,8 +219,8 @@ func loadWaypointFile(path string, colorDef map[string]string) ([]Waypoint, erro
 	return result, nil
 }
 
-func loadWaypoints(colorDef map[string]string) ([]Waypoint, error) {
-	dirents, err := ioutil.ReadDir(filepath.Join(metadataPath, "waypoints"))
+func loadWaypoints(colorDef map[string]string, source_dir string) ([]Waypoint, error) {
+	dirents, err := ioutil.ReadDir(source_dir)
 	if err != nil {
 		return nil, err
 	}
@@ -229,8 +229,8 @@ func loadWaypoints(colorDef map[string]string) ([]Waypoint, error) {
 
 	for _, entry := range dirents {
 		if !entry.IsDir() && filepath.Ext(entry.Name()) == ".txt" {
-			waypoints, err := loadWaypointFile(filepath.Join(metadataPath,
-				"waypoints", entry.Name()), colorDef)
+			waypoints, err := loadWaypointFile(filepath.Join(source_dir,
+				entry.Name()), colorDef)
 			if err != nil {
 				return nil, err
 			}
