@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,7 +12,6 @@ import (
 
 var (
 	ColorDataSyntaxError     = errors.New("Syntax error in colors.txt")
-	EmptyLine                = errors.New("")
 	DuplicateColorEntryError = errors.New("colors.txt has duplicate entry")
 )
 
@@ -111,6 +111,8 @@ func readColorDef(line string) (string, string, error) {
 }
 
 func loadColors() (map[string]string, error) {
+	log.Println("Loading colors.txt...")
+
 	colorsFile, err := os.Open(filepath.Join(metadataPath, "colors.txt"))
 	if err != nil {
 		return nil, err
@@ -118,7 +120,7 @@ func loadColors() (map[string]string, error) {
 	defer colorsFile.Close()
 
 	reader := bufio.NewReader(colorsFile)
-	var result map[string]string
+	result := make(map[string]string)
 	var lineBuilder strings.Builder
 	for {
 		buf, isPrefix, err := reader.ReadLine()
@@ -130,13 +132,15 @@ func loadColors() (map[string]string, error) {
 			}
 		}
 
+		lineBuilder.Write(buf)
 		if isPrefix {
-			lineBuilder.Write(buf)
+			continue
 		} else {
 			if lineBuilder.Len() == 0 {
 				continue
 			}
 			line := lineBuilder.String()
+			lineBuilder.Reset()
 
 			name, spec, err := readColorDef(line)
 			if err != nil {

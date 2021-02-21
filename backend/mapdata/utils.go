@@ -1,5 +1,11 @@
 package mapdata
 
+import "errors"
+
+var (
+	EmptyLine = errors.New("EmptyLine")
+)
+
 func skipSpace(source string, index int) int {
 	for i := index; i < len(source); i++ {
 		if source[i] == ' ' || source[i] == '\t' ||
