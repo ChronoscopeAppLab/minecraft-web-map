@@ -1,0 +1,31 @@
+/* Copyright (C) 2021 Chronoscope. All rights reserved. */
+
+#map {
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    cursor: move;
+    background: linear-gradient(45deg, white 25%, transparent 25%, transparent 75%, white 75%),
+                linear-gradient(45deg, white 25%, transparent 25%, transparent 75%, white 75%);
+    background-color: #bbb;
+    background-size: 20px 20px;
+    background-position: 0 0, 10px 10px;
+}
+
+#map.active-search-panel {
+    left: 420px;
+    width: calc(100% - 420px);
+}
+
+#map-status {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    font-size: 10pt;
+    color: #000;
+    background-color: rgba(255, 255, 255, .5);
+    pointer-events: none;
+}

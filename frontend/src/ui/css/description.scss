@@ -1,0 +1,48 @@
+/* Copyright (C) 2021 Chronoscope. All rights reserved. */
+
+.description-card {
+    position: fixed;
+    z-index: 12;
+    background-color: white;
+    width: 300px;
+    max-width: 100%;
+    left: calc(50% - 150px);
+    bottom: 30px;
+    padding: 10px;
+    border-radius: 4px;
+    box-shadow: rgba(0, 0, 0, .5) 2px 2px 4px;
+    opacity: 1;
+    transition: opacity 300ms;
+    border-top: solid 4px rgb(0, 98, 255);
+    pointer-events: none;
+    box-sizing: border-box;
+}
+@media screen and (max-width: 300px) {
+    .description-card {
+        left: 0;
+    }
+}
+
+.description-card.hidden {
+    opacity: 0;
+}
+
+#description-place-name {
+    font-size: 14pt;
+}
+
+#description-detail {
+    margin-top: 4px;
+    margin-left: 20px;
+    font-size: 10pt;
+    opacity: .8;
+}
+
+#description-thumbnail {
+    position: absolute;
+    top: 0;
+    right: 0;
+    margin: 15px;
+    height: 100px;
+    border-radius: 10px;
+}

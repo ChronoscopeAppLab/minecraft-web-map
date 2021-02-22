@@ -1,0 +1,50 @@
+/* Copyright (C) 2021 Chronoscope. All rights reserved. */
+
+#context-menu.invisible {
+    opacity: 0;
+    transform: scale(0, 0);
+}
+
+#context-menu {
+    position: fixed;
+    left: 0;
+    top: 0;
+    background-color: white;
+    z-index: 10;
+    padding: 10px 0;
+    border-radius: 3px;
+    box-shadow: 3px 3px 3px 3px rgba(0, 0, 0, .5);
+    transform-origin: top left;
+    transform: scale(1, 1);
+    transition-property: opacity, transform;
+    transition-duration: 300ms;
+    min-width: 160px;
+}
+
+#context-menu.left {
+    transform-origin: top right;
+}
+
+#context-menu.left.up {
+    transform-origin: bottom right;
+}
+
+#context-menu.up {
+    transform-origin: bottom left;
+}
+
+.context-menu-item {
+    padding: 3px 5px;
+}
+
+.context-menu-item.disabled {
+    color: #888;
+}
+
+.context-menu-item:not(.disabled) {
+    cursor: pointer;
+}
+
+.context-menu-item:not(.disabled):hover {
+    background-color: rgba(0, 0, 0, .1);
+}

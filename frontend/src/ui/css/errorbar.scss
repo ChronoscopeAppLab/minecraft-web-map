@@ -1,0 +1,20 @@
+/* Copyright (C) 2021 Chronoscope. All rights reserved. */
+
+#error-bar {
+    position: fixed;
+    width: 100%;
+    background-color: #fc1000;
+    color: white;
+    font-size: 15px;
+    padding: 10px;
+    text-align: center;
+    font-weight: bold;
+    transition: transform 500ms, opacity 800ms;
+    pointer-events: none;
+    z-index: 5;
+}
+
+#error-bar.hidden {
+    transform: translateY(-35px);
+    opacity: 0;
+}

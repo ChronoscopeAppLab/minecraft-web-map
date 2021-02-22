@@ -1,0 +1,95 @@
+/* Copyright (C) 2021 Chronoscope. All rights reserved. */
+
+#detail-panel {
+    position: fixed;
+    left: 0;
+    width: 420px;
+    max-width: 100%;
+    height: 100vh;
+    box-sizing: border-box;
+    background-color: #fff;
+    z-index: 10;
+    transition: 0.3s;
+    -webkit-transition: 0.3s;
+    box-shadow: 2px 2px 2px rgba(0, 0, 0, .5);
+    overflow-y: auto;
+}
+
+#detail-panel-image {
+    width: 100%;
+    height: 200px;
+    background-color: #d0d0d0;
+    background-position: center;
+    background-size: cover;
+}
+
+#detail-panel.no-image #detail-panel-image {
+    height: 60px;
+}
+#detail-panel.no-image #detail-panel-image {
+    display: none;
+}
+
+#detail-panel-overview {
+    background-color: rgb(0, 98, 255);
+    color: #fff;
+    box-sizing: border-box;
+    padding: 10px;
+}
+#detail-panel.no-image #detail-panel-overview {
+    padding-top: 60px;
+}
+#detail-panel-title {
+    font-size: 14pt;
+    font-weight: bold;
+}
+#detail-panel-detail {
+    box-sizing: border-box;
+    padding: 10px;
+}
+#compact-detail-panel-message {
+    display: hidden;
+    font-size: 10pt;
+}
+#compact-detail-panel-message {
+    display: none;
+}
+
+@media screen and (max-width: 800px) {
+    #detail-panel.compact-detail-panel {
+        left: 0;
+        bottom: 0;
+        width: 100%;
+        height: 100px;
+        overflow-y: hidden;
+        cursor: pointer;
+    }
+    .compact-detail-panel #detail-panel-image {
+        width: 140px;
+        height: 100%;
+        float: left;
+    }
+    .compact-detail-panel #detail-panel-overview {
+        width: calc(100% - 140px);
+        height: 100%;
+        padding-top: 10px !important;
+        float: left;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    #detail-panel.no-image.compact-detail-panel #detail-panel-overview {
+        width: 100%;
+    }
+    .compact-detail-panel #detail-panel-detail {
+        display: none;
+    }
+    .compact-detail-panel #compact-detail-panel-message{
+        display: inline;
+    }
+}
+
+#detail-panel.hidden {
+    transform: translateY(100vh);
+    opacity: 0;
+}
