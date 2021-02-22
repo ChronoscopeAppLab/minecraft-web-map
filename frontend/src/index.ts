@@ -4,6 +4,7 @@ import axios from 'axios';
 
 import AnimationInterpolator from './animationInterpolator';
 import Animator from './animator';
+import NavDrawer from './navDrawer';
 import * as networkError from './networkError';
 import PinOverlayWidget from './pinOverlayWidget';
 import queryParam from './queryParam';
@@ -11,22 +12,6 @@ import queryParam from './queryParam';
 import './ui/css/style.scss';
 
 type RenderingContext = CanvasRenderingContext2D;
-
-function showMenu() {
-    document.getElementById('menu-modal-back').classList.remove('hidden');
-    document.getElementById('menu').classList.remove('hidden');
-}
-
-function hideMenu() {
-    document.getElementById('menu-modal-back').classList.add('hidden');
-    document.getElementById('menu').classList.add('hidden');
-}
-
-window.addEventListener('load', () => {
-    document.getElementById('menu-button').addEventListener('click', showMenu);
-    document.getElementById('menu-modal-back')
-        .addEventListener('click', hideMenu);
-});
 
 class MapChunk {
     x: number
@@ -1106,6 +1091,12 @@ window.addEventListener('load', () => {
     if (dimensionNumber === 1) dimensionText = 'The Nether';
     if (dimensionNumber === 2) dimensionText = 'The End';
     document.getElementById('dimension').innerText = dimensionText;
+
+    new NavDrawer().attach(
+        document.getElementById('menu-button'),
+        document.getElementById('menu'),
+        document.getElementById('menu-modal-back')
+    );
 
     const menuItem =
         document.getElementById('context-menu').querySelectorAll('div');
