@@ -23,17 +23,16 @@ def main():
         pass
     os.chdir(dist_path)
 
-    webpack_proc = subprocess.Popen(['npm', 'run', 'watch'])
-    signal.signal(signal.SIGINT, lambda signum, frame:
-                  webpack_proc.terminate())
-
-    ret = subprocess.run([
+    server_proc = subprocess.Popen([
         path.join(base_path, 'backend', 'backend'),
-        '--debug', '--metadata-path', path.join(base_path, 'mapmeta')
-    ])
+        '--debug', '--metadata-path', path.join(base_path, 'mapmeta')])
+    signal.signal(signal.SIGINT, lambda signum, frame:
+                  server_proc.terminate())
+
+    ret = subprocess.run(['npm', 'run', 'watch'])
     if ret.returncode != -2:
-        print('Failed to launch back-end')
-        webpack_proc.terminate()
+        print('Failed to run webpack')
+        server_proc.terminate()
         return 1
 
     return 0
