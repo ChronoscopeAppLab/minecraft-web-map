@@ -19,7 +19,8 @@ func initSignalHandlers() {
 		for {
 			<-sigs
 			if err := mapdata.ReloadMetadata(); err != nil {
-				log.Fatal(err)
+				log.Println(err)
+				log.Println("Map metadata wasn't updated")
 			}
 		}
 	}()
