@@ -12,6 +12,6 @@ export function setInvalidated() {
     isDirty = false;
 }
 
-export default abstract class Widget {
+export default abstract class DrawingComponent {
     abstract draw(dc: DrawingContext): void;
 }

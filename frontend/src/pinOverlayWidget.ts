@@ -3,11 +3,11 @@
 import AnimationInterpolator from './animationInterpolator';
 import Animator from './animator';
 import * as constants from './constants';
-import Widget from './widget';
-import { invalidate } from './widget';
+import DrawingComponent from './drawingComponent';
+import { invalidate } from './drawingComponent';
 import DrawingContext from './drawingContext';
 
-export default class PinOverlayWidget extends Widget {
+export default class PinOverlayWidget extends DrawingComponent {
     private x: number;
     private y: number;
 

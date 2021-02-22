@@ -11,7 +11,7 @@ import NavDrawer from './navDrawer';
 import * as networkError from './networkError';
 import PinOverlayWidget from './pinOverlayWidget';
 import queryParam from './queryParam';
-import { isDirty, invalidate, setInvalidated } from './widget.ts';
+import { isDirty, invalidate, setInvalidated } from './drawingComponent';
 
 import './ui/css/style.scss';
 
