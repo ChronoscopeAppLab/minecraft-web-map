@@ -6,14 +6,19 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
+	"net/http"
+	"net/http/fcgi"
 
 	"github.com/ChronoscopeAppLab/minecraft-web-map/backend/env"
 	"github.com/ChronoscopeAppLab/minecraft-web-map/backend/mapdata"
 )
 
 func main() {
-	flag.BoolVar(&env.Debug, "debug", false, "Run server in debug mode.")
+	flag.BoolVar(&env.Debug, "debug", true, "Run server in debug mode.")
 	flag.StringVar(&env.MetadataPath, "metadata-path", "../mapmeta",
+		"Path to map metadata.")
+	flag.StringVar(&env.SocketPath, "socket-path", "/tmp/mcwebmap.sock",
 		"Path to map metadata.")
 	flag.Parse()
 
@@ -26,5 +31,24 @@ func main() {
 	if err := mapdata.ReloadMetadata(); err != nil {
 		log.Fatalf("Failed to load map metadata from %s: %s\n",
 			env.MetadataPath, err)
+	}
+
+	initSignalHandlers()
+	initRoutes()
+
+	if env.Debug {
+		l, err := net.Listen("tcp", ":8000")
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		log.Fatal(http.Serve(l, nil))
+	} else {
+		l, err := net.Listen("unix", env.SocketPath)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		log.Fatal(fcgi.Serve(l, nil))
 	}
 }
