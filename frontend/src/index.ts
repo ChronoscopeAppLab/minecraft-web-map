@@ -1,7 +1,10 @@
 // Copyright (C) 2021 Chronoscope. All rights reserved.
 
-import './ui/css/style.scss';
 import axios from 'axios';
+
+import queryParam from './queryParam';
+
+import './ui/css/style.scss';
 
 let networkErrorDisplayed: boolean = false;
 
@@ -21,16 +24,6 @@ function showMenu() {
 function hideMenu() {
     document.getElementById('menu-modal-back').classList.add('hidden');
     document.getElementById('menu').classList.add('hidden');
-}
-
-function getUrlParam(name: string): string {
-    const url = window.location.href;
-    name = name.replace(/[\[\]]/g, "\\$&");
-    const regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"),
-          result = regex.exec(url);
-    if (!result) return null;
-    if (!result[2]) return '';
-    return decodeURIComponent(result[2].replace(/\+/g, " "));
 }
 
 window.addEventListener('load', () => {
@@ -396,7 +389,7 @@ let icons = new Array(4).fill(0).map(e => { return new Array(2); });
 let pinWidget = (new PinOverlayWidget).setVisible(false);
 
 function getDimension(returnString: boolean = false): string | number {
-    let dim = getUrlParam('dim');
+    let dim = queryParam('dim');
     if (dim === '1' || dim === 'nether') return (returnString ? 'nether' : 1);
     if (dim === '2' || dim === 'end') return (returnString ? 'end' : 2);
     return (returnString ? 'overworld' : 0);
@@ -1052,8 +1045,8 @@ function loadPoints() {
 
             initializeSearchList();
 
-            const paramX = getUrlParam('x');
-            const paramZ = getUrlParam('z');
+            const paramX = queryParam('x');
+            const paramZ = queryParam('z');
             if (paramX !== null && paramZ !== null) {
                 const x = parseInt(paramX);
                 const z = parseInt(paramZ);
@@ -1352,8 +1345,8 @@ window.addEventListener('resize', () => {
 });
 
 window.addEventListener('popstate', () => {
-    const paramX = getUrlParam('x');
-    const paramZ = getUrlParam('z');
+    const paramX = queryParam('x');
+    const paramZ = queryParam('z');
     if (paramX === null || paramZ === null) {
         hidePin();
     } else {
