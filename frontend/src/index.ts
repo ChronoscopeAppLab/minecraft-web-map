@@ -2,19 +2,15 @@
 
 import axios from 'axios';
 
+import AnimationInterpolator from './animationInterpolator';
+import Animator from './animator';
+import * as networkError from './networkError';
+import PinOverlayWidget from './pinOverlayWidget';
 import queryParam from './queryParam';
 
 import './ui/css/style.scss';
 
-let networkErrorDisplayed: boolean = false;
-
-type RenderingContext = CanvasRenderingContext2D
-
-function displayNetworkError() {
-    if (networkErrorDisplayed) return;
-
-    document.getElementById('error-bar').classList.remove('hidden');
-}
+type RenderingContext = CanvasRenderingContext2D;
 
 function showMenu() {
     document.getElementById('menu-modal-back').classList.remove('hidden');
@@ -31,225 +27,6 @@ window.addEventListener('load', () => {
     document.getElementById('menu-modal-back')
         .addEventListener('click', hideMenu);
 });
-
-class AnimationInterpolator {
-    static linearInterpolator(ratio: number) { return ratio; }
-
-    static accelerateDeaccelerateInterpolator(ratio: number) {
-        return (Math.sin((ratio - 0.5) * Math.PI) + 1) / 2;
-    }
-
-    static overshootInterpolator(ratio: number) {
-        return (-5 / 3) * Math.pow(ratio - (4 / 5), 2) + (16 / 15);
-    }
-
-    static swanDiveInterpolator(ratio: number) {
-        return -Math.pow(ratio * 2 - 1, 2) + 1;
-    }
-
-    static vibrateInterpolator(ratio: number) {
-        return -Math.sin(ratio * 2 * Math.PI);
-    }
-}
-
-class Animator {
-    duration: number;
-    callback: (ratio: number) => void;
-    finished: boolean;
-    interpolator: any;
-    animationFrameId: number;
-    delay: number;
-    reverse: boolean;
-    finishCallback: any;
-    startTime: number;
-
-    constructor(duration: number, callback: (ratio: number) => void) {
-        this.duration = duration;
-        this.callback = callback;
-        this.finished = false;
-        this.interpolator = AnimationInterpolator.linearInterpolator;
-        this.animationFrameId = -1;
-        this.delay = 0;
-        this.reverse = false;
-    }
-
-    setDelay(delay: number) {
-        this.delay = delay;
-
-        return this;
-    }
-
-    setAnimationInterpolator(interpolator: (ratio: number) => number) {
-        this.interpolator = interpolator;
-
-        return this;
-    }
-
-    doFrame() {
-        const now = Date.now();
-        if (this.finished ||
-            now - this.startTime >= this.duration + this.delay) {
-            this.callback(this.reverse ? 0.0 : 1.0);
-            if (this.finishCallback) {
-                this.finishCallback();
-            }
-
-            return;
-        }
-
-        if (now - this.startTime >= this.delay) {
-            if (this.reverse) {
-                this.callback(this.interpolator(
-                    1 - (now - this.startTime - this.delay) / this.duration));
-
-            } else {
-                this.callback(this.interpolator(
-                    (now - this.startTime - this.delay) / this.duration));
-            }
-        }
-
-        this.animationFrameId = requestAnimationFrame(this.doFrame.bind(this));
-    }
-
-    start() {
-        this.startTime = Date.now();
-        this.animationFrameId = requestAnimationFrame(this.doFrame.bind(this));
-    }
-
-    finish() { this.finished = true; }
-
-    cancel() { cancelAnimationFrame(this.animationFrameId); }
-
-    withEndAction(callback: () => void) {
-        this.finishCallback = callback;
-        return this;
-    }
-
-    reversed() {
-        this.reverse = true;
-
-        return this;
-    }
-}
-
-class PinOverlayWidget {
-    x: number
-    y: number
-
-    rotate: number
-
-    pointingY: number
-
-    fromX: number
-    fromY: number
-    toX: number
-    toY: number
-
-    isVisible: boolean
-    scale: number
-
-    constructor() {
-        /* coordinate, this pin to be shown */
-        this.x = 0;
-        this.y = 0;
-
-        this.rotate = 0;
-
-        this.pointingY = 0;
-
-        /* these variables are used only when pin is moving */
-        this.fromX = 0;
-        this.fromY = 0;
-        this.toX = 0;
-        this.toY = 0;
-
-        this.isVisible = true;
-        this.scale = 1;
-    }
-
-    setPointCoord(x: number, y: number) {
-        this.x = x;
-        this.y = y;
-
-        return this;
-    }
-
-    setScale(scale: number) {
-        if (scale >= 0) this.scale = scale;
-
-        return this;
-    }
-
-    setVisible(visibility: boolean) {
-        this.isVisible = visibility;
-
-        return this;
-    }
-
-    getIsVisible() { return this.isVisible; }
-
-    setMoveTarget(x: number, y: number) {
-        this.fromX = this.x;
-        this.fromY = this.y;
-        this.toX = x;
-        this.toY = y;
-
-        return this;
-    }
-
-    move(ratio: number) {
-        if (ratio < 0.1) {
-            const trueratio = ratio / 0.1;
-
-            this.pointingY = -20 * trueratio;
-        } else if (0.1 <= ratio && ratio < 0.9) {
-            const trueratio = (ratio - 0.1) / 0.8;
-
-            this.x = this.fromX + (this.toX - this.fromX) * trueratio;
-            this.y = this.fromY + (this.toY - this.fromY) * trueratio -
-                     200 *
-                         AnimationInterpolator.swanDiveInterpolator(trueratio) /
-                         scale;
-        } else {
-            const trueratio = (ratio - 0.9) / 0.1;
-
-            this.pointingY = -20 * (1 - trueratio);
-        }
-    }
-
-    draw(ctxt: RenderingContext,
-         rangeLeft: number, rangeTop: number, mapScale: number) {
-        if (!this.isVisible) return;
-
-        ctxt.save();
-
-        const tx = (this.x - rangeLeft) * mapScale;
-        const ty = (this.y - rangeTop) * mapScale;
-
-        ctxt.translate(tx, ty);
-        ctxt.rotate(this.rotate);
-
-        ctxt.fillStyle = 'rgb(255, 0, 0)';
-        ctxt.beginPath();
-        ctxt.arc(0, -40 * this.scale, 20 * this.scale, 0, 2 * Math.PI, false);
-        ctxt.fill();
-
-        ctxt.beginPath();
-        ctxt.moveTo(0, this.pointingY);
-        ctxt.lineTo(20 * Math.sin(Math.PI / 3) * this.scale,
-                    (-40 + 20 * Math.cos(Math.PI / 3)) * this.scale);
-        ctxt.lineTo(-20 * Math.sin(Math.PI / 3) * this.scale,
-                    (-40 + 20 * Math.cos(Math.PI / 3)) * this.scale);
-        ctxt.fill();
-
-        ctxt.fillStyle = 'rgb(255, 255, 255)';
-        ctxt.beginPath();
-        ctxt.arc(0, -40 * this.scale, 10 * this.scale, 0, 2 * Math.PI, false);
-        ctxt.fill();
-
-        ctxt.restore();
-    }
-}
 
 class MapChunk {
     x: number
@@ -1056,7 +833,7 @@ function loadPoints() {
 
             invalidate();
         })
-        .catch((error) => { displayNetworkError(); });
+        .catch((error) => { networkError.show(); });
 }
 
 function shouldBeWhiteText(hexcolor: string): boolean {
@@ -1322,7 +1099,7 @@ window.addEventListener('load', () => {
 
             loadPoints();
         })
-        .catch((error) => { displayNetworkError(); });
+        .catch((error) => { networkError.show(); });
 
     let dimensionText = '';
     if (dimensionNumber === 0) dimensionText = 'Overworld';
