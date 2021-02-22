@@ -1,3 +1,1365 @@
 // Copyright (C) 2021 Chronoscope. All rights reserved.
 
-import './ui/css/style.scss'
+import './ui/css/style.scss';
+import axios from 'axios';
+
+let networkErrorDisplayed: boolean = false;
+
+type RenderingContext = CanvasRenderingContext2D
+
+function displayNetworkError() {
+    if (networkErrorDisplayed) return;
+
+    document.getElementById('error-bar').classList.remove('hidden');
+}
+
+function showMenu() {
+    document.getElementById('menu-modal-back').classList.remove('hidden');
+    document.getElementById('menu').classList.remove('hidden');
+}
+
+function hideMenu() {
+    document.getElementById('menu-modal-back').classList.add('hidden');
+    document.getElementById('menu').classList.add('hidden');
+}
+
+function getUrlParam(name: string): string {
+    const url = window.location.href;
+    name = name.replace(/[\[\]]/g, "\\$&");
+    const regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"),
+          result = regex.exec(url);
+    if (!result) return null;
+    if (!result[2]) return '';
+    return decodeURIComponent(result[2].replace(/\+/g, " "));
+}
+
+window.addEventListener('load', () => {
+    document.getElementById('menu-button').addEventListener('click', showMenu);
+    document.getElementById('menu-modal-back')
+        .addEventListener('click', hideMenu);
+});
+
+class AnimationInterpolator {
+    static linearInterpolator(ratio: number) { return ratio; }
+
+    static accelerateDeaccelerateInterpolator(ratio: number) {
+        return (Math.sin((ratio - 0.5) * Math.PI) + 1) / 2;
+    }
+
+    static overshootInterpolator(ratio: number) {
+        return (-5 / 3) * Math.pow(ratio - (4 / 5), 2) + (16 / 15);
+    }
+
+    static swanDiveInterpolator(ratio: number) {
+        return -Math.pow(ratio * 2 - 1, 2) + 1;
+    }
+
+    static vibrateInterpolator(ratio: number) {
+        return -Math.sin(ratio * 2 * Math.PI);
+    }
+}
+
+class Animator {
+    duration: number;
+    callback: (ratio: number) => void;
+    finished: boolean;
+    interpolator: any;
+    animationFrameId: number;
+    delay: number;
+    reverse: boolean;
+    finishCallback: any;
+    startTime: number;
+
+    constructor(duration: number, callback: (ratio: number) => void) {
+        this.duration = duration;
+        this.callback = callback;
+        this.finished = false;
+        this.interpolator = AnimationInterpolator.linearInterpolator;
+        this.animationFrameId = -1;
+        this.delay = 0;
+        this.reverse = false;
+    }
+
+    setDelay(delay: number) {
+        this.delay = delay;
+
+        return this;
+    }
+
+    setAnimationInterpolator(interpolator: (ratio: number) => number) {
+        this.interpolator = interpolator;
+
+        return this;
+    }
+
+    doFrame() {
+        const now = Date.now();
+        if (this.finished ||
+            now - this.startTime >= this.duration + this.delay) {
+            this.callback(this.reverse ? 0.0 : 1.0);
+            if (this.finishCallback) {
+                this.finishCallback();
+            }
+
+            return;
+        }
+
+        if (now - this.startTime >= this.delay) {
+            if (this.reverse) {
+                this.callback(this.interpolator(
+                    1 - (now - this.startTime - this.delay) / this.duration));
+
+            } else {
+                this.callback(this.interpolator(
+                    (now - this.startTime - this.delay) / this.duration));
+            }
+        }
+
+        this.animationFrameId = requestAnimationFrame(this.doFrame.bind(this));
+    }
+
+    start() {
+        this.startTime = Date.now();
+        this.animationFrameId = requestAnimationFrame(this.doFrame.bind(this));
+    }
+
+    finish() { this.finished = true; }
+
+    cancel() { cancelAnimationFrame(this.animationFrameId); }
+
+    withEndAction(callback: () => void) {
+        this.finishCallback = callback;
+        return this;
+    }
+
+    reversed() {
+        this.reverse = true;
+
+        return this;
+    }
+}
+
+class PinOverlayWidget {
+    x: number
+    y: number
+
+    rotate: number
+
+    pointingY: number
+
+    fromX: number
+    fromY: number
+    toX: number
+    toY: number
+
+    isVisible: boolean
+    scale: number
+
+    constructor() {
+        /* coordinate, this pin to be shown */
+        this.x = 0;
+        this.y = 0;
+
+        this.rotate = 0;
+
+        this.pointingY = 0;
+
+        /* these variables are used only when pin is moving */
+        this.fromX = 0;
+        this.fromY = 0;
+        this.toX = 0;
+        this.toY = 0;
+
+        this.isVisible = true;
+        this.scale = 1;
+    }
+
+    setPointCoord(x: number, y: number) {
+        this.x = x;
+        this.y = y;
+
+        return this;
+    }
+
+    setScale(scale: number) {
+        if (scale >= 0) this.scale = scale;
+
+        return this;
+    }
+
+    setVisible(visibility: boolean) {
+        this.isVisible = visibility;
+
+        return this;
+    }
+
+    getIsVisible() { return this.isVisible; }
+
+    setMoveTarget(x: number, y: number) {
+        this.fromX = this.x;
+        this.fromY = this.y;
+        this.toX = x;
+        this.toY = y;
+
+        return this;
+    }
+
+    move(ratio: number) {
+        if (ratio < 0.1) {
+            const trueratio = ratio / 0.1;
+
+            this.pointingY = -20 * trueratio;
+        } else if (0.1 <= ratio && ratio < 0.9) {
+            const trueratio = (ratio - 0.1) / 0.8;
+
+            this.x = this.fromX + (this.toX - this.fromX) * trueratio;
+            this.y = this.fromY + (this.toY - this.fromY) * trueratio -
+                     200 *
+                         AnimationInterpolator.swanDiveInterpolator(trueratio) /
+                         scale;
+        } else {
+            const trueratio = (ratio - 0.9) / 0.1;
+
+            this.pointingY = -20 * (1 - trueratio);
+        }
+    }
+
+    draw(ctxt: RenderingContext,
+         rangeLeft: number, rangeTop: number, mapScale: number) {
+        if (!this.isVisible) return;
+
+        ctxt.save();
+
+        const tx = (this.x - rangeLeft) * mapScale;
+        const ty = (this.y - rangeTop) * mapScale;
+
+        ctxt.translate(tx, ty);
+        ctxt.rotate(this.rotate);
+
+        ctxt.fillStyle = 'rgb(255, 0, 0)';
+        ctxt.beginPath();
+        ctxt.arc(0, -40 * this.scale, 20 * this.scale, 0, 2 * Math.PI, false);
+        ctxt.fill();
+
+        ctxt.beginPath();
+        ctxt.moveTo(0, this.pointingY);
+        ctxt.lineTo(20 * Math.sin(Math.PI / 3) * this.scale,
+                    (-40 + 20 * Math.cos(Math.PI / 3)) * this.scale);
+        ctxt.lineTo(-20 * Math.sin(Math.PI / 3) * this.scale,
+                    (-40 + 20 * Math.cos(Math.PI / 3)) * this.scale);
+        ctxt.fill();
+
+        ctxt.fillStyle = 'rgb(255, 255, 255)';
+        ctxt.beginPath();
+        ctxt.arc(0, -40 * this.scale, 10 * this.scale, 0, 2 * Math.PI, false);
+        ctxt.fill();
+
+        ctxt.restore();
+    }
+}
+
+class MapChunk {
+    x: number
+    y: number
+    image: HTMLImageElement
+
+    constructor(x: number, y: number) {
+        this.x = x;
+        this.y = y;
+        this.image = new Image;
+        this.image.src =
+            '/map/' + dimensionName + '/' + x + ',' + y + '.png';
+        this.image.addEventListener('load', invalidate);
+    }
+
+    draw(ctxt: RenderingContext) {
+        if (!this.image.complete || this.image.width === 0) {
+            return;
+        }
+
+        ctxt.drawImage(
+            this.image,
+            Math.floor(((this.x - chunkX) * CHUNK_WIDTH - offsetX) * scale),
+            Math.floor(((this.y - chunkY) * CHUNK_HEIGHT - offsetY) * scale),
+            Math.ceil(CHUNK_WIDTH * scale), Math.ceil(CHUNK_HEIGHT * scale));
+    }
+}
+
+class Waypoint {
+    type: number
+    x: number
+    y: number
+    name: string
+    hira: string
+    color: string
+    detail: string
+    image: string
+
+    constructor(data: any) {
+        this.type = data['type'];
+        this.x = data['x'];
+        this.y = data['z'];
+        this.name = data['name'];
+        this.hira = data['hira'];
+        this.color = data['color'];
+        this.detail = data['detail'];
+        this.image = data['image'];
+    }
+
+    isInBox(top: number, right: number, bottom: number, left: number) {
+        const vpX = left + (right - left) / 2;
+        const vpY = top + (bottom - top) / 2;
+        const dX = Math.abs(this.x - vpX);
+        const dY = Math.abs(this.y - vpY);
+        const farX = (right - left) / 2 + MARK_RADIUS;
+        const farY = (bottom - top) / 2 + MARK_RADIUS;
+
+        return dX < farX && dY < farY;
+    }
+
+    draw(ctxt: RenderingContext, rangeLeft: number, rangeTop: number) {
+        if (this.type == 0) {
+            ctxt.font = "bold 24px sans-serif";
+            const textWidth = ctxt.measureText(this.name).width;
+            ctxt.fillStyle = 'rgba(0, 0, 0, .6)';
+            ctxt.fillText(this.name,
+                          (this.x - rangeLeft) * scale - textWidth / 2 + 2,
+                          (this.y - rangeTop) * scale + 2);
+            ctxt.fillStyle = 'rgba(255, 255, 255, .6)';
+            ctxt.fillText(this.name,
+                          (this.x - rangeLeft) * scale - textWidth / 2,
+                          (this.y - rangeTop) * scale);
+        } else {
+            ctxt.fillStyle = 'rgba(0, 0, 0, .3)';
+            ctxt.beginPath();
+            ctxt.arc((this.x - rangeLeft) * scale + 1,
+                     (this.y - rangeTop) * scale + 1, MARK_RADIUS, 0,
+                     2 * Math.PI, false);
+            ctxt.fill();
+
+            ctxt.fillStyle =
+                this.color !== null ? this.color : 'rgb(0, 98, 255)';
+            ctxt.beginPath();
+            ctxt.arc((this.x - rangeLeft) * scale, (this.y - rangeTop) * scale,
+                     MARK_RADIUS, 0, 2 * Math.PI, false);
+            ctxt.fill();
+
+            if (this.type === 2 || this.type === 3) {
+                let whiteText = false;
+                if (this.color !== null) {
+                    whiteText = shouldBeWhiteText(this.color);
+                }
+
+                let icon = getIcon(this.type, whiteText);
+                if (icon !== null) {
+                    ctxt.drawImage(
+                        icon, (this.x - rangeLeft) * scale - MARK_RADIUS * 0.7,
+                        (this.y - rangeTop) * scale - MARK_RADIUS * 0.7, 14,
+                        14);
+                }
+            }
+        }
+    }
+}
+
+const CHUNK_WIDTH: number = 512;
+const CHUNK_HEIGHT: number = 512;
+
+const MARK_RADIUS: number = 10;
+const MOVE_ANIMATION_DURATION: number = 1500;
+const SCALE_ANIMATION_DURATION: number = 500;
+
+const MIN_SCALE = 0.3;
+const MAX_SCALE = 10.0;
+
+let maps: MapChunk[] = [];
+let width: number;
+let height: number;
+let chunkX: number = 0;
+let chunkY: number = 0;
+let offsetX: number = 0;
+let offsetY: number = 0;
+
+let points: Waypoint[] = [];
+let chunkRange: number[] = [ 0, 0, 0, 0 ];
+
+let scale: number = 1.0;
+let origScale: number = scale;
+let oldDistance: number = 0;
+let touchZoomTimeOut: number;
+let touchZooming: boolean = false;
+let touchZoomCx: number;
+let touchZoomCy: number;
+
+let icons = new Array(4).fill(0).map(e => { return new Array(2); });
+
+let pinWidget = (new PinOverlayWidget).setVisible(false);
+
+function getDimension(returnString: boolean = false): string | number {
+    let dim = getUrlParam('dim');
+    if (dim === '1' || dim === 'nether') return (returnString ? 'nether' : 1);
+    if (dim === '2' || dim === 'end') return (returnString ? 'end' : 2);
+    return (returnString ? 'overworld' : 0);
+}
+
+const dimensionNumber = getDimension();
+const dimensionName = getDimension(true);
+
+function internalCenterizeCoord(x: number, y: number) {
+    chunkX = 0;
+    chunkY = 0;
+    offsetX = x - width / 2 / scale;
+    offsetY = y - height / 2 / scale;
+
+    normalizeChunkOffset();
+}
+
+function centerizeCoord(x: number, y: number) {
+    const oldCenterX = chunkX * CHUNK_WIDTH + offsetX + width / 2,
+          oldCenterY = chunkY * CHUNK_HEIGHT + offsetY + height / 2;
+
+    const newCenterX = x, newCenterY = y;
+
+    const origScale = scale;
+
+    new Animator(MOVE_ANIMATION_DURATION, (ratio: number) => {
+        internalCenterizeCoord(oldCenterX + (newCenterX - oldCenterX) * ratio,
+                               oldCenterY + (newCenterY - oldCenterY) * ratio);
+        const newScale = origScale - 0.25 + (ratio - 0.5) * (ratio - 0.5);
+        keepCenter(scale, newScale, width / 2, height / 2);
+        scale = newScale;
+
+        invalidate();
+    }).start();
+}
+
+function getIconPath(type: number, isWhite: boolean = false): string {
+    if (type < 2 || 3 < type) return;
+
+    if (type === 2) {
+        return isWhite ? '/images/train_white.png' : '/images/train.png';
+    } else if (type === 3) {
+        return isWhite ? '/images/subway_white.png' : '/images/subway.png';
+    }
+}
+
+function getIcon(type: number, isWhite: boolean = false): HTMLImageElement {
+    let icon = new Image;
+    if (icons[type][isWhite ? 0 : 1]) {
+        const icon = icons[type][isWhite ? 0 : 1];
+        if (icon.complete && icon.width !== 0)
+            return icons[type][isWhite ? 0 : 1];
+        else
+            return null;
+    }
+
+    icon.src = getIconPath(type, isWhite);
+    icon.addEventListener('load', invalidate);
+    icons[type][isWhite ? 0 : 1] = icon;
+
+    return null;
+}
+
+function retriveChunks() {
+    let chunksInRange = [];
+    for (let x = chunkX;; ++x) {
+        if (((x - chunkX - 1) * CHUNK_WIDTH - offsetX) * scale >= width) break;
+
+        for (let y = chunkY;; ++y) {
+            if (((y - chunkY - 1) * CHUNK_HEIGHT - offsetY) * scale >= height)
+                break;
+
+            chunksInRange.push([ x, y ]);
+        }
+    }
+
+    chunksInRange.forEach((e) => {
+        if (typeof maps.find((f) => f.x === e[0] && f.y === e[1]) ===
+            'undefined') {
+            maps.push(new MapChunk(e[0], e[1]));
+        }
+    });
+}
+
+function runCacheGc() {
+    for (;;) {
+        if (maps.length > (Math.ceil(width / CHUNK_WIDTH / scale) + 1) *
+                              (Math.ceil(height / CHUNK_HEIGHT / scale) + 1)) {
+            maps.shift();
+        } else {
+            break;
+        }
+    }
+}
+
+let isDirty: boolean = true;
+
+function internalOnDraw() {
+    if (!isDirty) {
+        if (Math.random() < 0.01) {
+            runCacheGc();
+        }
+
+        requestAnimationFrame(internalOnDraw);
+
+        return;
+    }
+
+    isDirty = false;
+
+    retriveChunks();
+
+    const ctxt = (<HTMLCanvasElement>document.getElementById('map')).getContext('2d');
+
+    ctxt.clearRect(0, 0, width, height);
+
+    for (let i = 0; i < maps.length; ++i) {
+        const imageChunk = maps.shift();
+        imageChunk.draw(ctxt);
+        maps.push(imageChunk);
+    }
+
+    /* スケールする前の範囲（points.json の内容をそのまま使うため） */
+    const rangeLeft = chunkX * CHUNK_WIDTH + offsetX;
+    const rangeRight = rangeLeft + width / scale;
+    const rangeTop = chunkY * CHUNK_HEIGHT + offsetY;
+    const rangeBottom = rangeTop + height / scale;
+
+    for (let i = 0; i < points.length; ++i) {
+        if (points[i].isInBox(rangeTop, rangeRight, rangeBottom, rangeLeft)) {
+            points[i].draw(ctxt, rangeLeft, rangeTop);
+        }
+    }
+
+    pinWidget.draw(ctxt, rangeLeft, rangeTop, scale);
+
+    requestAnimationFrame(internalOnDraw);
+}
+
+function invalidate() { isDirty = true; }
+
+let canvasRect: DOMRect;
+
+let endCond: any = {};
+
+function adjustCanvas() {
+    const canvas = <HTMLCanvasElement>document.getElementById('map');
+
+    width = canvas.clientWidth;
+    height = canvas.clientHeight;
+
+    canvas.width = width;
+    canvas.height = height;
+
+    canvas.getContext('2d').imageSmoothingEnabled = false;
+
+    if (width > CHUNK_WIDTH * chunkRange[2]) {
+        endCond.chunkX = 0;
+        endCond.offsetX = 0;
+    } else {
+        endCond.chunkX = chunkRange[2] - 1 - Math.floor(width / CHUNK_WIDTH);
+        endCond.offsetX = CHUNK_WIDTH - width % CHUNK_WIDTH;
+    }
+
+    if (height > CHUNK_HEIGHT * chunkRange[3]) {
+        endCond.chunkY = 0;
+        endCond.offsetY = 0;
+    } else {
+        endCond.chunkY = chunkRange[3] - 1 - Math.floor(height / CHUNK_HEIGHT);
+        endCond.offsetY = CHUNK_HEIGHT - height % CHUNK_HEIGHT;
+    }
+
+    canvasRect = canvas.getBoundingClientRect();
+}
+
+class PointingDeviceCoord {
+    x: number;
+    y: number;
+
+    constructor(x: number, y: number) {
+        this.x = x;
+        this.y = y;
+    }
+
+    static wrapMouseEvent(e: MouseEvent): PointingDeviceCoord {
+        return new PointingDeviceCoord(e.clientX, e.clientY);
+    }
+
+    static wrapTouchEvent(e: TouchEvent): PointingDeviceCoord {
+        let touch = e.changedTouches[0];
+        return new PointingDeviceCoord(touch.clientX, touch.clientY);
+    }
+}
+
+function changeCursor(coord: PointingDeviceCoord) {
+    const x = Math.floor(coord.x / scale + chunkX * CHUNK_WIDTH + offsetX);
+    const y = Math.floor(coord.y / scale + chunkY * CHUNK_HEIGHT + offsetY);
+
+    document.getElementById('coordinate').innerText = 'X=' + x + ' Z=' + y;
+
+    const point =
+        points.find((e: Waypoint) => Math.pow(e.x - x, 2) + Math.pow(e.y - y, 2) <=
+            (MARK_RADIUS * MARK_RADIUS) / (scale * scale));
+    const selecting = typeof point !== 'undefined';
+
+    const canvas = document.getElementById('map');
+    canvas.style.cursor = selecting ? 'pointer' : 'move';
+
+    if (selecting) {
+        showDescriptionCard(point.name, point.x, false, point.y, point.detail,
+                            true);
+    } else {
+        if (document.getElementById('description-card')
+                .classList.contains('auto-hide'))
+            hideDescriptionCard();
+    }
+}
+
+function showDescriptionCard(name: string,
+                             x: number | boolean,
+                             y: number | boolean,
+                             z: number | boolean,
+                             detail: string, autoHide = false) {
+    const descriptionCard = document.getElementById('description-card');
+    let coordinateText = '';
+    if (x !== false) coordinateText += 'X=' + x + ' ';
+    if (y !== false) coordinateText += 'Y=' + y + ' ';
+    if (z !== false) coordinateText += 'Z=' + z + ' ';
+    document.getElementById('description-place-name').innerText = name;
+    document.getElementById('description-coordinate').innerText =
+        coordinateText;
+    document.getElementById('description-address').innerText = detail;
+    if (autoHide)
+        descriptionCard.classList.add('auto-hide');
+    else
+        descriptionCard.classList.remove('auto-hide');
+    descriptionCard.classList.remove('hidden');
+}
+
+function hideDescriptionCard() {
+    document.getElementById('description-card').classList.remove('auto-hide');
+    document.getElementById('description-card').classList.add('hidden');
+}
+
+let isMouseDown: boolean;
+let isMouseMoved: boolean;
+let prevX: number;
+let prevY: number;
+let prevMoveTime: number
+let velocityX: number
+let velocityY: number;
+let inertiaAnimator: Animator = null;
+
+function dragStart(e: PointingDeviceCoord) {
+    if (inertiaAnimator != null) {
+        inertiaAnimator.cancel();
+        inertiaAnimator = null;
+    }
+    isMouseDown = true;
+    isMouseMoved = false;
+    prevX = e.x - canvasRect.left;
+    prevY = e.y - canvasRect.top;
+    velocityX = 0;
+    velocityY = 0;
+    prevMoveTime = -1;
+}
+
+function mouseDown(e: MouseEvent) {
+    dragStart(PointingDeviceCoord.wrapMouseEvent(e));
+}
+
+/*  0 <= offset_{x,y} < CHUNK_{WIDTH,HEIGHT} になるように調整する。
+   描画範囲が画面の範囲を超えている場合に範囲を動かす。 */
+function normalizeChunkOffset() {
+    for (;;) {
+        if (chunkX < endCond.chunkX && offsetX >= CHUNK_WIDTH) {
+            offsetX -= CHUNK_WIDTH;
+            ++chunkX;
+        } else if (chunkX > chunkRange[0] && offsetX < 0) {
+            offsetX += CHUNK_WIDTH;
+            --chunkX;
+        } else {
+            if (chunkX <= chunkRange[0] && offsetX < 0) {
+                chunkX = chunkRange[0];
+                offsetX = 0;
+            } else if (chunkX >= endCond.chunkX && offsetX > endCond.offsetX) {
+                chunkX = endCond.chunkX;
+                offsetX = endCond.offsetX;
+            }
+
+            break;
+        }
+    }
+
+    for (;;) {
+        if (chunkY < endCond.chunkY && offsetY >= CHUNK_HEIGHT) {
+            offsetY -= CHUNK_HEIGHT;
+            ++chunkY;
+        } else if (chunkY > chunkRange[1] && offsetY < 0) {
+            offsetY += CHUNK_HEIGHT;
+            --chunkY;
+        } else {
+            if (chunkY <= chunkRange[1] && offsetY < 0) {
+                chunkY = chunkRange[1];
+                offsetY = 0;
+            } else if (chunkY >= endCond.chunkY && offsetY > endCond.offsetY) {
+                chunkY = endCond.chunkY;
+                offsetY = endCond.offsetY;
+            }
+
+            break;
+        }
+    }
+}
+
+function dragMap(e: PointingDeviceCoord) {
+    isMouseMoved = true;
+    changeCursor(e);
+
+    if (!isMouseDown) return;
+
+    const currentX = e.x - canvasRect.left;
+    const currentY = e.y - canvasRect.top;
+    const now = Date.now();
+    if (prevMoveTime >= 0) {
+        velocityX = (currentX - prevX) / (now - prevMoveTime);
+        velocityY = (currentY - prevY) / (now - prevMoveTime);
+    }
+    prevMoveTime = now;
+
+    if (!touchZooming) {
+        const moveX = (prevX - currentX) / scale;
+        const moveY = (prevY - currentY) / scale;
+
+        offsetX += moveX;
+        offsetY += moveY;
+    }
+
+    normalizeChunkOffset();
+
+    invalidate();
+
+    prevX = currentX;
+    prevY = currentY;
+}
+
+function mouseMove(e: MouseEvent) {
+    dragMap(PointingDeviceCoord.wrapMouseEvent(e))
+}
+
+function mouseUp() {
+    if (!isMouseDown) return;
+
+    isMouseDown = false;
+    if (!isMouseMoved) return;
+    if (touchZooming) return;
+
+    let vx = velocityX;
+    let vy = velocityY;
+    const ax = -vx / 800;
+    const ay = -vy / 800;
+    let prevTime = 0;
+    inertiaAnimator = new Animator(800, (ratio: number) => {
+        const t = 800 * ratio;
+        const dt = t - prevTime;
+        vx += ax * dt;
+        vy += ay * dt;
+        offsetX -= vx * dt + 0.5 * ax * dt * dt;
+        offsetY -= vy * dt + 0.5 * ay * dt * dt;
+
+        prevTime = t;
+
+        normalizeChunkOffset();
+        invalidate();
+    });
+    inertiaAnimator.start();
+}
+
+function touchStart(e: TouchEvent) {
+    dragStart(PointingDeviceCoord.wrapTouchEvent(e));
+}
+
+function touchMove(e: TouchEvent) {
+    e.preventDefault();
+    if (e.changedTouches.length == 1) {
+        dragMap(PointingDeviceCoord.wrapTouchEvent(e));
+    } else {
+        const touches = e.changedTouches;
+        const x1 = touches[0].clientX - canvasRect.left,
+        y1 = touches[0].clientY - canvasRect.top,
+        x2 = touches[1].clientX - canvasRect.left,
+        y2 = touches[1].clientY - canvasRect.top,
+        distance = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2)),
+        oScale = scale;
+
+        if (!oldDistance) {
+            touchZoomCx = (x1 + x2) / 2;
+            touchZoomCy = (y1 + y2) / 2;
+            touchZooming = true;
+            oldDistance = distance;
+            origScale = scale;
+        } else {
+            scale = origScale * distance / oldDistance;
+            if (scale < MIN_SCALE)
+                scale = MIN_SCALE;
+            else if (MAX_SCALE < scale)
+                scale = MAX_SCALE;
+            keepCenter(oScale, scale, touchZoomCx, touchZoomCy);
+
+            document.getElementById('scale').innerText =
+                'Scale=' + (Math.floor(scale * 10) / 10);
+
+            invalidate();
+        }
+    }
+};
+
+function touchEnd() {
+    mouseUp();
+    oldDistance = 0;
+    touchZooming = false;
+}
+
+function click(e: MouseEvent) {
+    if (isMouseMoved) return;
+
+    hideSearchList();
+    hideDetailPanel();
+    hideContextMenu();
+
+    const x = e.clientX + chunkX * CHUNK_WIDTH + offsetX;
+    const y = e.clientY + chunkY * CHUNK_HEIGHT + offsetY;
+
+    const pointId =
+        points.findIndex(e => Math.pow(e.x - x, 2) + Math.pow(e.y - y, 2) <=
+                              MARK_RADIUS * MARK_RADIUS);
+    if (pointId >= 0) {
+        goToPoint(pointId);
+        hideDescriptionCard();
+    } else {
+        hidePin();
+        hideDescriptionCard();
+    }
+};
+
+let contextMenuX: number;
+let contextMenuY: number;
+
+function showContextMenu(x: number, y: number) {
+    contextMenuX = x;
+    contextMenuY = y;
+    const menu = document.getElementById('context-menu');
+    if (width - x < menu.clientWidth) {
+        menu.classList.add('left');
+        menu.style.left = 'unset';
+        menu.style.right = (width - x) + 'px';
+    } else {
+        menu.classList.remove('left');
+        menu.style.left = x + 'px';
+        menu.style.right = 'unset';
+    }
+    if (height - y < menu.clientHeight) {
+        menu.classList.add('up');
+        menu.style.top = 'unset';
+        menu.style.bottom = (height - y) + 'px';
+    } else {
+        menu.classList.remove('up');
+        menu.style.top = y + 'px';
+        menu.style.bottom = 'unset';
+    }
+
+    menu.classList.remove('invisible');
+}
+
+function hideContextMenu() {
+    const menu = document.getElementById('context-menu');
+    menu.classList.add('invisible');
+}
+
+function onContextMenuSelected(id: string, menuX: number, menuY: number) {
+    if (id === 'select-point') {
+        hideDetailPanel();
+        const x = Math.floor(menuX / scale + chunkX * CHUNK_WIDTH + offsetX);
+        const z = Math.floor(menuY / scale + chunkY * CHUNK_HEIGHT + offsetY);
+        showPin(x, z);
+        if (document.body.clientWidth >= 800) {
+            centerizeCoord(x - 210, z);
+        } else {
+            centerizeCoord(x, z);
+        }
+        updateUrl(x, z);
+
+        axios.get('/api/block?x=' + x + '&z=' + z + '&dimen=' + dimensionName)
+            .then((response) => {
+                const blockInfo = response.data;
+                showDetailPanel({
+                    name : '指定したポイント',
+                    x : x,
+                    y : z,
+                    type : 1,
+                    detail : '表面: ' + blockInfo['block']　+
+                                 ', Y=' + blockInfo['altitude']
+                });
+            })
+            .catch((error) => {
+                showDetailPanel({
+                    name : '指定したポイント',
+                    x : x,
+                    y : z,
+                    type : 1,
+                    detail : '表面の情報がありません'
+                });
+            });
+    } else if (id === 'add-waypoint') {
+        location.href = '/fragment/waypoint.html';
+    }
+}
+
+function contextMenu(e: any) {
+    showContextMenu(e.x, e.y);
+}
+
+let leftOffset: number = 0;
+
+/* cx, cy: 中心として利用する画面上の座標 */
+function keepCenter(origScale: number, newScale: number,
+                    cx: number, cy: number) {
+    /* 中央の座標を保持しつつ origScale から newScale にサイズを変更したとき，
+       左上の座標は，もとの左上の座標と中央の座標の間の origscale/newScale
+       の割合の位置に移動する */
+
+    /* 1. もとのスケールでの左上からマウスまでの（スケールしてない場合の）距離を
+       x, y それぞれについて求める */
+    const origLenToCenterX = (cx + leftOffset) / origScale;
+    const origLenToCenterY = cy / origScale;
+
+    /* 2. 新たな左上から中央の長さを求める */
+    const newLenToCenterX = origLenToCenterX * (origScale / newScale);
+    const newLenToCenterY = origLenToCenterY * (origScale / newScale);
+
+    /* 3. スケール前後の左上から中央への長さの差を描画オフセットに加える */
+    offsetX += origLenToCenterX - newLenToCenterX;
+    offsetY += origLenToCenterY - newLenToCenterY;
+
+    /* 4. オフセットをチャンクに反映 */
+    normalizeChunkOffset();
+}
+
+function setScale(oscale: number, nscale: number) {
+    if (nscale < MIN_SCALE)
+        nscale = MIN_SCALE;
+    else if (MAX_SCALE < nscale)
+        nscale = MAX_SCALE;
+
+    new Animator(SCALE_ANIMATION_DURATION,
+                 (ratio: number) => {
+                     const ns = oscale + (nscale - oscale) * ratio;
+                     keepCenter(scale, ns, width / 2, height / 2);
+                     scale = ns;
+
+                     invalidate();
+                 })
+        .setAnimationInterpolator(
+            AnimationInterpolator.accelerateDeaccelerateInterpolator)
+        .start();
+
+    document.getElementById('scale').innerText =
+        'Scale=' + (Math.floor(nscale * 10) / 10);
+}
+
+function wheel(e: WheelEvent) {
+    const origScale = scale;
+    scale -= e.deltaY / 200;
+    prevX = e.clientX - canvasRect.left;
+    prevY = e.clientY - canvasRect.top;
+
+    if (scale < MIN_SCALE)
+        scale = MIN_SCALE;
+    else if (MAX_SCALE < scale)
+        scale = MAX_SCALE;
+
+    keepCenter(origScale, scale, prevX, prevY);
+
+    document.getElementById('scale').innerText =
+        'Scale=' + (Math.floor(scale * 10) / 10);
+
+    invalidate();
+}
+
+function zoomIn() { setScale(scale, scale + 0.5); }
+
+function zoomOut() { setScale(scale, scale - 0.5); }
+
+function zoomOrig() { setScale(scale, 1); };
+
+function initMapPosition() {
+    if (dimensionNumber === 0) {
+        chunkX = -3;
+        chunkY = 3;
+    } else {
+        chunkX = -1;
+        chunkY = -1;
+    }
+
+    offsetX = 0;
+    offsetY = 0;
+}
+
+function initializeSearchList() {
+    const template = <HTMLTemplateElement>document.getElementById('search-list-content');
+    const fragment = document.createDocumentFragment();
+    for (let i = 0; i < points.length; i++) {
+        const point = points[i];
+        // リスト上に表示
+        const clone = document.importNode(template.content, true);
+        const listItem = <HTMLElement>clone.querySelector('.content');
+        const name = <HTMLElement>clone.querySelector('.name');
+        const icon = <HTMLImageElement>clone.querySelector('.icon');
+        const detail = <HTMLElement>clone.querySelector('.detail');
+        const iconPath = getIconPath(point.type);
+        name.innerText = point.name;
+        detail.innerText = 'X=' + point.x + ' Z=' + point.y;
+        listItem.addEventListener('click', () => {
+            goToPoint(i);
+            hideSearchList();
+        });
+        if (iconPath) icon.src = iconPath;
+        if (point.color) listItem.style.borderLeftColor = point['color'];
+
+        fragment.appendChild(clone);
+    }
+    document.getElementById('search-list').appendChild(fragment);
+}
+
+function loadPoints() {
+    axios.get('/api/points?dimen=' + dimensionName)
+        .then((response) => {
+            points = response.data.map((e: any) => new Waypoint(e));
+
+            const canvas = <HTMLCanvasElement>document.getElementById('map');
+            canvas.addEventListener('mousedown', mouseDown);
+            canvas.addEventListener('mousemove', mouseMove);
+            canvas.addEventListener('mouseup', mouseUp);
+            canvas.addEventListener('mouseleave', mouseUp);
+            canvas.addEventListener('touchstart', touchStart);
+            canvas.addEventListener('touchmove', touchMove);
+            canvas.addEventListener('touchend', touchEnd);
+            canvas.addEventListener('click', click);
+            canvas.addEventListener('wheel', wheel);
+            canvas.addEventListener('contextmenu', contextMenu);
+
+            canvas.getContext('2d').imageSmoothingEnabled = false;
+
+            initializeSearchList();
+
+            const paramX = getUrlParam('x');
+            const paramZ = getUrlParam('z');
+            if (paramX !== null && paramZ !== null) {
+                const x = parseInt(paramX);
+                const z = parseInt(paramZ);
+                showPin(x, z);
+                centerizeCoord(x, z);
+            }
+
+            invalidate();
+        })
+        .catch((error) => { displayNetworkError(); });
+}
+
+function shouldBeWhiteText(hexcolor: string): boolean {
+    var r = parseInt(hexcolor.substr(1, 2), 16);
+    var g = parseInt(hexcolor.substr(3, 2), 16);
+    var b = parseInt(hexcolor.substr(5, 2), 16);
+    return ((((r * 299) + (g * 587) + (b * 114)) / 1000) < 128);
+}
+
+let searchListShown: boolean = false;
+let detailPanelShown: boolean = false;
+
+function showSearchList() {
+    if (searchListShown) return;
+    searchListShown = true;
+
+    hideDetailPanel();
+    searchPoint();
+    document.getElementById('search-panel').classList.remove('hidden');
+    document.getElementById('menu-button').classList.add('hidden');
+    document.getElementById('search-back-button').classList.remove('hidden');
+
+    const origOffsetX = offsetX;
+    const origChunkX = chunkX;
+
+    new Animator(150, (ratio: number) => {
+        offsetX = origOffsetX - 210 * ratio / scale;
+        chunkX = origChunkX;
+
+        normalizeChunkOffset();
+
+        invalidate();
+    }).withEndAction(() => { leftOffset = 210; }).start();
+}
+
+function hideSearchList() {
+    if (!searchListShown) return;
+    searchListShown = false;
+
+    document.getElementById('search-panel').classList.add('hidden');
+    document.getElementById('menu-button').classList.remove('hidden');
+    document.getElementById('search-back-button').classList.add('hidden');
+
+    const origOffsetX = offsetX;
+    const origChunkX = chunkX;
+
+    new Animator(150, (ratio: number) => {
+        offsetX = origOffsetX + 210 * ratio / scale;
+        chunkX = origChunkX;
+
+        normalizeChunkOffset();
+
+        invalidate();
+    }).withEndAction(() => { leftOffset = 0; }).start();
+}
+
+function showPin(x: number, y: number) {
+    if (pinWidget.getIsVisible()) {
+        const direction = pinWidget.x > x ? 1 : -1;
+
+        pinWidget.setMoveTarget(x, y);
+
+        new Animator(1000,
+                     (ratio: number) => {
+                         pinWidget.move(ratio);
+                         invalidate();
+                     })
+            .setDelay(250)
+            .setAnimationInterpolator(
+                AnimationInterpolator.accelerateDeaccelerateInterpolator)
+            .start();
+    } else {
+        pinWidget.setPointCoord(x, y).setScale(0).setVisible(true);
+
+        new Animator(300,
+                     (ratio: number) => {
+                         pinWidget.setScale(ratio);
+
+                         invalidate();
+                     })
+            .setDelay(MOVE_ANIMATION_DURATION)
+            .setAnimationInterpolator(
+                AnimationInterpolator.overshootInterpolator)
+            .start();
+    }
+};
+
+function hidePin() {
+    new Animator(100,
+                 (ratio: number) => {
+                     pinWidget.setScale(ratio);
+
+                     invalidate();
+                 })
+        .reversed()
+        .withEndAction(() => {
+            pinWidget.setVisible(false);
+            invalidate();
+        })
+        .start();
+}
+
+function updateUrl(x: number, z: number) {
+    history.pushState(null, null,
+                      '?dimen=' + dimensionName + '&x=' + x + '&z=' + z);
+}
+
+function goToPoint(id: number) {
+    const point = points[id];
+    showPin(point.x, point.y);
+    if (document.body.clientWidth >= 800) {
+        centerizeCoord(point.x - 210, point.y);
+    } else {
+        centerizeCoord(point.x, point.y);
+    }
+    showDetailPanel(point);
+    updateUrl(point.x, point.y);
+}
+
+function showDetailPanel(point: any) {
+    detailPanelShown = true;
+    document.getElementById('search-panel').classList.add('hidden');
+    document.getElementById('menu-button').classList.add('hidden');
+    document.getElementById('search-back-button').classList.remove('hidden');
+
+    document.getElementById('detail-panel-title').innerText = point['name'];
+    document.getElementById('detail-panel-subtitle').innerText =
+        'X=' + point['x'] + ', Z=' + point['y'];
+    document.getElementById('detail-panel-detail').innerText = point['detail'];
+    if (point['image']) {
+        document.getElementById('detail-panel').classList.remove('no-image');
+        document.getElementById('detail-panel-image').style.backgroundImage =
+            'url("../images/points/' + point['image'] + '")';
+    } else {
+        document.getElementById('detail-panel').classList.add('no-image');
+    }
+    const detailOverview = document.getElementById('detail-panel-overview');
+    if (point['color']) {
+        detailOverview.style.backgroundColor = point['color'];
+        detailOverview.style.color =
+            shouldBeWhiteText(point['color']) ? '#fff' : '#000';
+    } else {
+        detailOverview.style.backgroundColor = 'rgb(0, 98, 255)';
+        detailOverview.style.color = '#fff';
+    }
+    document.getElementById('detail-panel').classList.remove('hidden');
+}
+
+function hideDetailPanel() {
+    if (!detailPanelShown) return true;
+    detailPanelShown = false;
+    document.getElementById('detail-panel').classList.add('hidden');
+    document.getElementById('menu-button').classList.remove('hidden');
+    document.getElementById('search-back-button').classList.add('hidden');
+
+    document.getElementById('detail-panel')
+        .classList.add('compact-detail-panel');
+}
+
+function expandDetailPanel() {
+    document.getElementById('detail-panel')
+        .classList.remove('compact-detail-panel');
+    const origOffsetX = offsetX;
+    const origChunkX = chunkX;
+
+    new Animator(150, (ratio: number) => {
+        offsetX = origOffsetX - 210 * ratio / scale;
+        chunkX = origChunkX;
+
+        normalizeChunkOffset();
+
+        invalidate();
+    }).withEndAction(() => { leftOffset = 210; }).start();
+}
+
+function searchPoint() {
+    const searchText = (<HTMLInputElement>document.getElementById('search-box')).value;
+    const searchList = document.getElementById('search-list');
+    if (searchText) {
+        document.getElementById('search-button').classList.add('hidden');
+        document.getElementById('search-clear-button')
+            .classList.remove('hidden');
+    } else {
+        document.getElementById('search-button').classList.remove('hidden');
+        document.getElementById('search-clear-button').classList.add('hidden');
+    }
+    for (let i = 0; i < points.length; i++) {
+        if (points[i]['name'].indexOf(searchText) !== -1 ||
+            points[i]['hira'].indexOf(searchText) !== -1) {
+            searchList.children[i].classList.remove('hidden');
+        } else {
+            searchList.children[i].classList.add('hidden');
+        }
+    }
+}
+
+function handleContextMenu(e: any) {
+    hideContextMenu();
+    onContextMenuSelected(e.target.id, contextMenuX, contextMenuY);
+}
+
+window.addEventListener('load', () => {
+    axios.get('/map/' + dimensionName + '/chunk_range.json')
+        .then((response) => {
+            chunkRange = response.data;
+            adjustCanvas();
+
+            initMapPosition();
+
+            requestAnimationFrame(internalOnDraw);
+
+            const infoPanel = document.getElementById('info-panel');
+
+            document.getElementById('zoom-in-button')
+                .addEventListener('click', zoomIn);
+            document.getElementById('zoom-out-button')
+                .addEventListener('click', zoomOut);
+            document.getElementById('zoom-orig-button')
+                .addEventListener('click', zoomOrig);
+
+            document.getElementById('search-box')
+                .addEventListener('click', showSearchList);
+            document.getElementById('search-box')
+                .addEventListener('input', searchPoint);
+
+            document.getElementById('search-back-button')
+                .addEventListener('click', () => {
+                    if (searchListShown) {
+                        hideSearchList();
+                    } else if (detailPanelShown) {
+                        if (document.getElementById('detail-panel')
+                                .classList.contains('compact-detail-panel')) {
+                            hideDetailPanel();
+                        } else {
+                            document.getElementById('detail-panel')
+                                .classList.add('compact-detail-panel');
+                            const origOffsetX = offsetX;
+                            const origChunkX = chunkX;
+
+                            new Animator(150, (ratio: number) => {
+                                offsetX = origOffsetX + 210 * ratio / scale;
+                                chunkX = origChunkX;
+
+                                normalizeChunkOffset();
+
+                                invalidate();
+                            }).withEndAction(() => { leftOffset = 0; }).start();
+                        }
+                    }
+                });
+            document.getElementById('search-button')
+                .addEventListener('click', () => {
+                    document.getElementById('search-box').focus();
+                    showSearchList();
+                });
+            document.getElementById('search-clear-button')
+                .addEventListener('click', () => {
+                    (<HTMLInputElement>document.getElementById('search-box')).value = '';
+                    searchPoint();
+                });
+            document.querySelector('.compact-detail-panel')
+                .addEventListener('click', expandDetailPanel);
+
+            loadPoints();
+        })
+        .catch((error) => { displayNetworkError(); });
+
+    let dimensionText = '';
+    if (dimensionNumber === 0) dimensionText = 'Overworld';
+    if (dimensionNumber === 1) dimensionText = 'The Nether';
+    if (dimensionNumber === 2) dimensionText = 'The End';
+    document.getElementById('dimension').innerText = dimensionText;
+
+    const menuItem =
+        document.getElementById('context-menu').querySelectorAll('div');
+    for (let i = 0; i < menuItem.length; ++i) {
+        if (!menuItem[i].classList.contains('disabled')) {
+            menuItem[i].addEventListener('click', handleContextMenu);
+        }
+    }
+});
+
+window.addEventListener('resize', () => {
+    adjustCanvas();
+    invalidate();
+});
+
+window.addEventListener('popstate', () => {
+    const paramX = getUrlParam('x');
+    const paramZ = getUrlParam('z');
+    if (paramX === null || paramZ === null) {
+        hidePin();
+    } else {
+        const x = parseInt(paramX);
+        const z = parseInt(paramZ);
+        centerizeCoord(x, z);
+        showPin(x, z);
+    }
+});
