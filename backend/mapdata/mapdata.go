@@ -32,3 +32,20 @@ func ReloadMetadata() error {
 
 	return nil
 }
+
+func GetWaypoints(dimen string) *[]Waypoint {
+	if dimen == "" {
+		dimen = "overworld"
+	}
+
+	dimenNum := 0
+	if dimen[0] == 'n' {
+		// "nether"
+		dimenNum = 1
+	} else if dimen[0] == 'e' {
+		// "end"
+		dimenNum = 2
+	}
+
+	return &waypoints[dimenNum]
+}
