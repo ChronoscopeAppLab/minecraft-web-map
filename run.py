@@ -3,6 +3,7 @@
 # Copyright (C) 2021 Chronoscope. All rights reserved.
 
 import os
+import signal
 from os import path
 import subprocess
 
@@ -23,17 +24,17 @@ def main():
     os.chdir(dist_path)
 
     webpack_proc = subprocess.Popen(['npm', 'run', 'watch'])
+    signal.signal(signal.SIGINT, lambda signum, frame:
+                  webpack_proc.terminate())
 
     ret = subprocess.run([
         path.join(base_path, 'backend', 'backend'),
         '--debug', '--metadata-path', path.join(base_path, 'mapmeta')
     ])
-    if ret.returncode != 0:
+    if ret.returncode != -2:
         print('Failed to launch back-end')
         webpack_proc.terminate()
         return 1
-
-    webpack_proc.terminate()
 
     return 0
 
