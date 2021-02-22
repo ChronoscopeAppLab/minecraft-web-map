@@ -3,8 +3,99 @@
 <html>
   <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>Chronoscoper's World</title>
   </head>
-  <body>
-    <h1>Front-end (TBD)</h1>
+
+  <body oncontextmenu="return false;">
+    <div id="error-bar" class="hidden">サーバに接続できないため、一部のリソースの取得に失敗しました。</div>
+
+    <div id="search-bar">
+      <img src="/images/menu.png" id="menu-button" class="button">
+      <img src="/images/arrow_left.png" id="search-back-button" class="button hidden">
+      <input id="search-box" type="text" value="" placeholder="スポットの検索">
+      <img id="search-button" src="/images/search.png" alt="検索" class="button">
+      <img id="search-clear-button" src="/images/clear.png" alt="クリア" class="button hidden">
+    </div>
+
+    <div id="menu-modal-back" class="hidden">
+    </div>
+    <div id="menu" class="hidden">
+      <div id="menu-header">
+        <div id="menu-title">
+          Chronoscoper's World Map
+        </div>
+      </div>
+      <a href="?dim=overworld" class="menu-content">
+        オーバーワールド
+      </a>
+      <a href="?dim=nether" class="menu-content">
+        ネザー
+      </a>
+      <a href="?dim=end" class="menu-content">
+        ジ・エンド
+      </a>
+      <a href="/images/map/train_map.png" class="menu-content">
+        路線図を見る
+      </a>
+
+      <hr class="menu-separator">
+    </div>
+
+    <canvas id="map"></canvas>
+
+    <div id="zoom-buttons">
+      <img src="/images/zoom_in.png" id="zoom-in-button" alt="+">
+      <img src="/images/trip_origin.png" id="zoom-orig-button" alt="0">
+      <img src="/images/zoom_out.png" id="zoom-out-button" alt="-">
+    </div>
+
+    <div class="description-card hidden" id="description-card">
+      <div id="description-place-name"></div>
+      <div id="description-detail">
+        <div id="description-coordinate"></div>
+        <div id="description-address"></div>
+      </div>
+    </div>
+
+    <div id="map-status">
+      <span id="coordinate">X=*** Z=***</span>
+      <span id="scale">Scale=1</span>
+      <span>Chronoscoper's World</span> -
+      <span id="dimension"></span>
+    </div>
+
+    <div id="search-panel" class="hidden">
+      <div class="top-bar"></div>
+      <div id="search-list">
+      </div>
+    </div>
+
+    <div class="compact-detail-panel hidden" id="detail-panel">
+      <div id="detail-panel-image"></div>
+      <div id="detail-panel-overview">
+        <div id="detail-panel-title">大平</div>
+        <div id="detail-panel-subtitle">おおだいら - 地名</div>
+        <div id="compact-detail-panel-message">タップして詳細を表示</div>
+      </div>
+      <div id="detail-panel-detail">
+        平原に広がる大平市の中心地。様々な職業の村人が居住し，それに合わせてあまたのゴーレムが発生している。
+        その上，地下に複雑な回路網があるため，プレイヤーのマシンおよびサーバーに負荷がかかる。
+      </div>
+    </div>
+
+    <div id="context-menu" class="invisible">
+      <div class="context-menu-item" id="select-point">地点を選択</div>
+      <div class="context-menu-item" id="add-waypoint">ウェイポイントを追加</div>
+    </div>
+
+    <template id="search-list-content">
+      <div class="content" onclick="hideSearchList();">
+        <div class="name"></div>
+        <img src="/images/place.png" class="icon"><div class="detail"></div>
+      </div>
+    </template>
+
   </body>
+
 </html>
