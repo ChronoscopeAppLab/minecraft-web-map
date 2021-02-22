@@ -6,6 +6,7 @@ import os
 import signal
 from os import path
 import subprocess
+import platform
 
 def main():
     base_path = path.dirname(path.abspath(__file__))
@@ -29,11 +30,28 @@ def main():
     signal.signal(signal.SIGINT, lambda signum, frame:
                   server_proc.terminate())
 
-    ret = subprocess.run(['npm', 'run', 'watch'])
+    try:
+        ret = subprocess.run(['npm', 'run', 'watch'])
+    except FileNotFoundError:
+        if platform.system() == 'Windows':
+            appdata_dir = os.getenv('APPDATA')
+            if appdata_dir:
+                npm_exec = path.join(appdata_dir, 'npm', 'npm.cmd')
+                ret = subprocess.run([npm_exec, 'run', 'watch'])
+            else:
+                print('Failed to detect APPDATA dir')
+                server_proc.terminate()
+                return 1
+        else:
+            print('Failed to execute npm')
+            server_proc.terminate()
+            return 1
+
     if ret.returncode != -2:
         print('Failed to run webpack')
         server_proc.terminate()
         return 1
+
 
     return 0
 
