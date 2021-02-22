@@ -4,14 +4,20 @@ import axios from 'axios';
 
 import AnimationInterpolator from './animationInterpolator';
 import Animator from './animator';
+import * as constants from './constants';
+import DrawingContext from './drawingContext';
+import MapScreenRect from './mapScreenRect';
 import NavDrawer from './navDrawer';
 import * as networkError from './networkError';
 import PinOverlayWidget from './pinOverlayWidget';
 import queryParam from './queryParam';
+import { isDirty, invalidate, setInvalidated } from './widget.ts';
 
 import './ui/css/style.scss';
 
 type RenderingContext = CanvasRenderingContext2D;
+
+let globalDrawingContext: DrawingContext = null;
 
 class MapChunk {
     x: number
@@ -41,14 +47,14 @@ class MapChunk {
 }
 
 class Waypoint {
-    type: number
-    x: number
-    y: number
-    name: string
-    hira: string
-    color: string
-    detail: string
-    image: string
+    type: number;
+    x: number;
+    y: number;
+    name: string;
+    hira: string;
+    color: string;
+    detail: string;
+    image: string;
 
     constructor(data: any) {
         this.type = data['type'];
@@ -121,7 +127,6 @@ const CHUNK_WIDTH: number = 512;
 const CHUNK_HEIGHT: number = 512;
 
 const MARK_RADIUS: number = 10;
-const MOVE_ANIMATION_DURATION: number = 1500;
 const SCALE_ANIMATION_DURATION: number = 500;
 
 const MIN_SCALE = 0.3;
@@ -148,7 +153,7 @@ let touchZoomCy: number;
 
 let icons = new Array(4).fill(0).map(e => { return new Array(2); });
 
-let pinWidget = (new PinOverlayWidget).setVisible(false);
+const pinWidget = new PinOverlayWidget();
 
 function getDimension(returnString: boolean = false): string | number {
     let dim = queryParam('dim');
@@ -177,7 +182,7 @@ function centerizeCoord(x: number, y: number) {
 
     const origScale = scale;
 
-    new Animator(MOVE_ANIMATION_DURATION, (ratio: number) => {
+    new Animator(constants.MOVE_ANIMATION_DURATION, (ratio: number) => {
         internalCenterizeCoord(oldCenterX + (newCenterX - oldCenterX) * ratio,
                                oldCenterY + (newCenterY - oldCenterY) * ratio);
         const newScale = origScale - 0.25 + (ratio - 0.5) * (ratio - 0.5);
@@ -247,8 +252,6 @@ function runCacheGc() {
     }
 }
 
-let isDirty: boolean = true;
-
 function internalOnDraw() {
     if (!isDirty) {
         if (Math.random() < 0.01) {
@@ -260,7 +263,7 @@ function internalOnDraw() {
         return;
     }
 
-    isDirty = false;
+    setInvalidated();
 
     retriveChunks();
 
@@ -280,18 +283,24 @@ function internalOnDraw() {
     const rangeTop = chunkY * CHUNK_HEIGHT + offsetY;
     const rangeBottom = rangeTop + height / scale;
 
+    // XXX
+    globalDrawingContext.setCenterCoord(
+        rangeLeft + (rangeRight - rangeLeft) / 2,
+        rangeTop + (rangeBottom - rangeTop) / 2)
+    globalDrawingContext.setSize(rangeRight - rangeLeft,
+                                 rangeBottom - rangeTop);
+    globalDrawingContext.setMapScale(scale);
+
     for (let i = 0; i < points.length; ++i) {
         if (points[i].isInBox(rangeTop, rangeRight, rangeBottom, rangeLeft)) {
             points[i].draw(ctxt, rangeLeft, rangeTop);
         }
     }
 
-    pinWidget.draw(ctxt, rangeLeft, rangeTop, scale);
+    pinWidget.draw(globalDrawingContext);
 
     requestAnimationFrame(internalOnDraw);
 }
-
-function invalidate() { isDirty = true; }
 
 let canvasRect: DOMRect;
 
@@ -306,7 +315,13 @@ function adjustCanvas() {
     canvas.width = width;
     canvas.height = height;
 
-    canvas.getContext('2d').imageSmoothingEnabled = false;
+    const ctxt = canvas.getContext('2d');
+    ctxt.imageSmoothingEnabled = false;
+
+    if (globalDrawingContext == null) {
+        globalDrawingContext = new DrawingContext(
+            ctxt, new MapScreenRect(0, 0, width, height));
+    }
 
     if (width > CHUNK_WIDTH * chunkRange[2]) {
         endCond.chunkX = 0;
@@ -592,7 +607,7 @@ function click(e: MouseEvent) {
         goToPoint(pointId);
         hideDescriptionCard();
     } else {
-        hidePin();
+        pinWidget.hide();
         hideDescriptionCard();
     }
 };
@@ -636,7 +651,7 @@ function onContextMenuSelected(id: string, menuX: number, menuY: number) {
         hideDetailPanel();
         const x = Math.floor(menuX / scale + chunkX * CHUNK_WIDTH + offsetX);
         const z = Math.floor(menuY / scale + chunkY * CHUNK_HEIGHT + offsetY);
-        showPin(x, z);
+        pinWidget.showAt(x, z);
         if (document.body.clientWidth >= 800) {
             centerizeCoord(x - 210, z);
         } else {
@@ -812,7 +827,7 @@ function loadPoints() {
             if (paramX !== null && paramZ !== null) {
                 const x = parseInt(paramX);
                 const z = parseInt(paramZ);
-                showPin(x, z);
+                pinWidget.showAt(x, z);
                 centerizeCoord(x, z);
             }
 
@@ -875,52 +890,6 @@ function hideSearchList() {
     }).withEndAction(() => { leftOffset = 0; }).start();
 }
 
-function showPin(x: number, y: number) {
-    if (pinWidget.getIsVisible()) {
-        const direction = pinWidget.x > x ? 1 : -1;
-
-        pinWidget.setMoveTarget(x, y);
-
-        new Animator(1000,
-                     (ratio: number) => {
-                         pinWidget.move(ratio);
-                         invalidate();
-                     })
-            .setDelay(250)
-            .setAnimationInterpolator(
-                AnimationInterpolator.accelerateDeaccelerateInterpolator)
-            .start();
-    } else {
-        pinWidget.setPointCoord(x, y).setScale(0).setVisible(true);
-
-        new Animator(300,
-                     (ratio: number) => {
-                         pinWidget.setScale(ratio);
-
-                         invalidate();
-                     })
-            .setDelay(MOVE_ANIMATION_DURATION)
-            .setAnimationInterpolator(
-                AnimationInterpolator.overshootInterpolator)
-            .start();
-    }
-};
-
-function hidePin() {
-    new Animator(100,
-                 (ratio: number) => {
-                     pinWidget.setScale(ratio);
-
-                     invalidate();
-                 })
-        .reversed()
-        .withEndAction(() => {
-            pinWidget.setVisible(false);
-            invalidate();
-        })
-        .start();
-}
-
 function updateUrl(x: number, z: number) {
     history.pushState(null, null,
                       '?dimen=' + dimensionName + '&x=' + x + '&z=' + z);
@@ -928,7 +897,7 @@ function updateUrl(x: number, z: number) {
 
 function goToPoint(id: number) {
     const point = points[id];
-    showPin(point.x, point.y);
+    pinWidget.showAt(point.x, point.y);
     if (document.body.clientWidth >= 800) {
         centerizeCoord(point.x - 210, point.y);
     } else {
@@ -1116,11 +1085,11 @@ window.addEventListener('popstate', () => {
     const paramX = queryParam('x');
     const paramZ = queryParam('z');
     if (paramX === null || paramZ === null) {
-        hidePin();
+        pinWidget.hide();
     } else {
         const x = parseInt(paramX);
         const z = parseInt(paramZ);
         centerizeCoord(x, z);
-        showPin(x, z);
+        pinWidget.showAt(x, z);
     }
 });

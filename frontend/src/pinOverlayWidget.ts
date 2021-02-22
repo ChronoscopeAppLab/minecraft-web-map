@@ -1,31 +1,32 @@
 // Copyright (C) 2021 Chronoscope. All rights reserved.
 
 import AnimationInterpolator from './animationInterpolator';
+import Animator from './animator';
+import * as constants from './constants';
+import Widget from './widget';
+import { invalidate } from './widget';
+import DrawingContext from './drawingContext';
 
-type RenderingContext = CanvasRenderingContext2D;
+export default class PinOverlayWidget extends Widget {
+    private x: number;
+    private y: number;
 
-export default class PinOverlayWidget {
-    x: number
-    y: number
+    private pointingY: number;
 
-    rotate: number
+    private fromX: number;
+    private fromY: number;
+    private toX: number;
+    private toY: number;
 
-    pointingY: number
-
-    fromX: number
-    fromY: number
-    toX: number
-    toY: number
-
-    isVisible: boolean
-    scale: number
+    private isVisible: boolean;
+    private scale: number;
 
     constructor() {
+        super();
+
         /* coordinate, this pin to be shown */
         this.x = 0;
         this.y = 0;
-
-        this.rotate = 0;
 
         this.pointingY = 0;
 
@@ -35,7 +36,7 @@ export default class PinOverlayWidget {
         this.toX = 0;
         this.toY = 0;
 
-        this.isVisible = true;
+        this.isVisible = false;
         this.scale = 1;
     }
 
@@ -46,14 +47,54 @@ export default class PinOverlayWidget {
         return this;
     }
 
+    showAt(x: number, y: number) {
+        if (this.getIsVisible()) {
+            this.setMoveTarget(x, y);
+
+            new Animator(1000,
+                         (ratio: number) => {
+                             this.move(ratio);
+                         })
+                .setDelay(250)
+                .setAnimationInterpolator(
+                    AnimationInterpolator.accelerateDeaccelerateInterpolator)
+                .start();
+        } else {
+            this.setPointCoord(x, y).setScale(0).setVisible(true);
+
+            new Animator(300,
+                         (ratio: number) => {
+                             this.setScale(ratio);
+                         })
+                .setDelay(constants.MOVE_ANIMATION_DURATION)
+                .setAnimationInterpolator(
+                    AnimationInterpolator.overshootInterpolator)
+                .start();
+        }
+    }
+
+    hide() {
+        new Animator(100,
+                     (ratio: number) => {
+                         this.setScale(ratio);
+                     })
+            .reversed()
+            .withEndAction(() => {
+                this.setVisible(false);
+            })
+            .start();
+    }
+
     setScale(scale: number) {
         if (scale >= 0) this.scale = scale;
+        invalidate();
 
         return this;
     }
 
     setVisible(visibility: boolean) {
         this.isVisible = visibility;
+        invalidate();
 
         return this;
     }
@@ -87,36 +128,42 @@ export default class PinOverlayWidget {
 
             this.pointingY = -20 * (1 - trueratio);
         }
+
+        invalidate();
     }
 
-    draw(ctxt: RenderingContext,
-         rangeLeft: number, rangeTop: number, mapScale: number) {
+    draw(dc: DrawingContext) {
         if (!this.isVisible) return;
+
+        const ctxt = dc.getContext();
 
         ctxt.save();
 
-        const tx = (this.x - rangeLeft) * mapScale;
-        const ty = (this.y - rangeTop) * mapScale;
+        const rect = dc.getRect();
+        const scale = dc.getMapScale();
+
+        // Calculate targeting coordinate in the display.
+        const tx = (this.x - rect.getLeft()) * scale;
+        const ty = (this.y - rect.getTop()) * scale;
 
         ctxt.translate(tx, ty);
-        ctxt.rotate(this.rotate);
 
         ctxt.fillStyle = 'rgb(255, 0, 0)';
         ctxt.beginPath();
-        ctxt.arc(0, -40 * this.scale, 20 * this.scale, 0, 2 * Math.PI, false);
+        ctxt.arc(0, -40 * this.scale, 20 * this.scale, 0, 2 * Math.PI);
         ctxt.fill();
 
         ctxt.beginPath();
         ctxt.moveTo(0, this.pointingY);
         ctxt.lineTo(20 * Math.sin(Math.PI / 3) * this.scale,
-                    (-40 + 20 * Math.cos(Math.PI / 3)) * this.scale);
+                    -(40 - 20 * Math.cos(Math.PI / 3)) * this.scale);
         ctxt.lineTo(-20 * Math.sin(Math.PI / 3) * this.scale,
-                    (-40 + 20 * Math.cos(Math.PI / 3)) * this.scale);
+                    -(40 - 20 * Math.cos(Math.PI / 3)) * this.scale);
         ctxt.fill();
 
         ctxt.fillStyle = 'rgb(255, 255, 255)';
         ctxt.beginPath();
-        ctxt.arc(0, -40 * this.scale, 10 * this.scale, 0, 2 * Math.PI, false);
+        ctxt.arc(0, -40 * this.scale, 10 * this.scale, 0, 2 * Math.PI);
         ctxt.fill();
 
         ctxt.restore();
