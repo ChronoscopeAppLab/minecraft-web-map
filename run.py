@@ -26,10 +26,11 @@ def main():
 
     ret = subprocess.run([
         path.join(base_path, 'backend', 'backend'),
-        '--debug'
+        '--debug', '--metadata-path', path.join(base_path, 'mapmeta')
     ])
     if ret.returncode != 0:
         print('Failed to launch back-end')
+        webpack_proc.terminate()
         return 1
 
     webpack_proc.terminate()
