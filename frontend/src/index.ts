@@ -10,6 +10,7 @@ import MapScreenRect from './mapScreenRect';
 import NavDrawer from './navDrawer';
 import * as networkError from './networkError';
 import PinOverlayWidget from './pinOverlayWidget';
+import PointingDeviceCoord from './pointingDeviceCoord';
 import queryParam from './queryParam';
 import { isDirty, invalidate, setInvalidated } from './drawingComponent';
 
@@ -342,25 +343,6 @@ function adjustCanvas() {
     canvasRect = canvas.getBoundingClientRect();
 }
 
-class PointingDeviceCoord {
-    x: number;
-    y: number;
-
-    constructor(x: number, y: number) {
-        this.x = x;
-        this.y = y;
-    }
-
-    static wrapMouseEvent(e: MouseEvent): PointingDeviceCoord {
-        return new PointingDeviceCoord(e.clientX, e.clientY);
-    }
-
-    static wrapTouchEvent(e: TouchEvent): PointingDeviceCoord {
-        let touch = e.changedTouches[0];
-        return new PointingDeviceCoord(touch.clientX, touch.clientY);
-    }
-}
-
 function changeCursor(coord: PointingDeviceCoord) {
     const x = Math.floor(coord.x / scale + chunkX * CHUNK_WIDTH + offsetX);
     const y = Math.floor(coord.y / scale + chunkY * CHUNK_HEIGHT + offsetY);
@@ -680,8 +662,6 @@ function onContextMenuSelected(id: string, menuX: number, menuY: number) {
                     detail : '表面の情報がありません'
                 });
             });
-    } else if (id === 'add-waypoint') {
-        location.href = '/fragment/waypoint.html';
     }
 }
 

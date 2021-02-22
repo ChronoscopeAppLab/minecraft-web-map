@@ -333,6 +333,7 @@ body {
     transform: scale(1, 1);
     transition-property: opacity, transform;
     transition-duration: 300ms;
+    min-width: 160px;
 }
 
 #context-menu.left {
