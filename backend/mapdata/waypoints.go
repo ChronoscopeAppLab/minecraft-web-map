@@ -46,6 +46,8 @@ type Waypoint struct {
 	Color string
 	// Coordinate of this waypoint
 	X, Z int
+	// Threshold for this waypoint to show up
+	ZoomLevel int
 }
 
 func readPointName(line string) (string, error) {
@@ -130,6 +132,12 @@ func createWaypoint(name string, values map[string]string,
 	default:
 		return nil, UndefinedTypeError
 	}
+
+	zoomLevel, err := strconv.Atoi(values["zoomlevel"])
+	if err != nil {
+		return nil, err
+	}
+	result.ZoomLevel = zoomLevel;
 
 	return result, nil
 }

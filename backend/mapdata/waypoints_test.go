@@ -88,19 +88,20 @@ func TestReadPointDataActuallyEmpty(t *testing.T) {
 	}
 }
 
-var testColorDef = map[string]string {
+var testColorDef = map[string]string{
 	"blue": "#00f",
-};
+}
 
 func TestCreateWaypointDefaultType(t *testing.T) {
 	name := "foo"
 	values := map[string]string{
-		"yomi": "A",
-		"detail": "B",
-		"color": "blue",
-		"x": "1",
-		"z": "2",
-		"type": "default",
+		"yomi":      "A",
+		"detail":    "B",
+		"color":     "blue",
+		"x":         "1",
+		"z":         "2",
+		"type":      "default",
+		"zoomlevel": "70",
 	}
 	wp, err := createWaypoint(name, values, testColorDef)
 	if err != nil {
@@ -127,17 +128,21 @@ func TestCreateWaypointDefaultType(t *testing.T) {
 	if wp.Type != TypeDefault {
 		t.Errorf("Expect `%d', but got `%d'\n", TypeDefault, wp.Type)
 	}
+	if wp.ZoomLevel != 70 {
+		t.Errorf("Expect `%d', but got `%d'\n", 70, wp.ZoomLevel)
+	}
 }
 
 func TestCreateWaypointLabelType(t *testing.T) {
 	name := "foo"
 	values := map[string]string{
-		"yomi": "A",
-		"detail": "B",
-		"color": "blue",
-		"x": "1",
-		"z": "2",
-		"type": "label",
+		"yomi":      "A",
+		"detail":    "B",
+		"color":     "blue",
+		"x":         "1",
+		"z":         "2",
+		"type":      "label",
+		"zoomlevel": "70",
 	}
 	wp, err := createWaypoint(name, values, testColorDef)
 	if err != nil {
@@ -151,13 +156,14 @@ func TestCreateWaypointLabelType(t *testing.T) {
 func TestCreateWaypointTrainType(t *testing.T) {
 	name := "foo"
 	values := map[string]string{
-		"yomi": "A",
-		"detail": "B",
-		"color": "blue",
-		"x": "1",
-		"z": "2",
+		"yomi":      "A",
+		"detail":    "B",
+		"color":     "blue",
+		"x":         "1",
+		"z":         "2",
 		"stationid": "STN",
-		"type": "train",
+		"type":      "train",
+		"zoomlevel": "70",
 	}
 	wp, err := createWaypoint(name, values, testColorDef)
 	if err != nil {
@@ -175,12 +181,13 @@ func TestCreateWaypointTrainType(t *testing.T) {
 func TestCreateWaypointSubwayType(t *testing.T) {
 	name := "foo"
 	values := map[string]string{
-		"yomi": "A",
-		"detail": "B",
-		"color": "blue",
-		"x": "1",
-		"z": "2",
-		"type": "subway",
+		"yomi":      "A",
+		"detail":    "B",
+		"color":     "blue",
+		"x":         "1",
+		"z":         "2",
+		"type":      "subway",
+		"zoomlevel": "70",
 	}
 	wp, err := createWaypoint(name, values, testColorDef)
 	if err != nil {

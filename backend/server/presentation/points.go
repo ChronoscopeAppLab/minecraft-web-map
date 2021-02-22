@@ -14,11 +14,15 @@ type Waypoint struct {
 	Z      int    `json:"z"`
 }
 
-func ConvertWaypoints(data *[]mapdata.Waypoint) []Waypoint {
-	result := make([]Waypoint, len(*data))
+func ConvertWaypoints(data *[]mapdata.Waypoint, zoomLevel int) []Waypoint {
+	var result []Waypoint
 
-	for i, src := range *data {
-		result[i] = Waypoint{
+	for _, src := range *data {
+		if zoomLevel < src.ZoomLevel {
+			continue
+		}
+
+		result = append(result, Waypoint{
 			src.Name,
 			src.Yomi,
 			src.Detail,
@@ -26,7 +30,7 @@ func ConvertWaypoints(data *[]mapdata.Waypoint) []Waypoint {
 			src.Color,
 			src.X,
 			src.Z,
-		}
+		})
 	}
 
 	return result
