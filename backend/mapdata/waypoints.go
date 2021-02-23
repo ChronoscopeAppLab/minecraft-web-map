@@ -89,6 +89,9 @@ func readPointData(line string) (string, string, error) {
 	key := strings.Trim(data[0:eqIndex-1], " \t")
 	val := strings.Trim(data[eqIndex:], " \t")
 
+	// Interpret `\\' as new line.
+	val = strings.ReplaceAll(val, "\\\\", "\n")
+
 	return key, val, nil
 }
 

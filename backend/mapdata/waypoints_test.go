@@ -88,6 +88,38 @@ func TestReadPointDataActuallyEmpty(t *testing.T) {
 	}
 }
 
+func TestReadPointDataWithNewLine(t *testing.T) {
+	testData := " foo = bar\\\\baz"
+	key, val, err := readPointData(testData)
+	if err != nil {
+		t.Errorf("%s: Error occurred, but shouldn't: %s",
+			testData, err)
+	}
+
+	if key != "foo" {
+		t.Errorf("Expected `foo', but got `%s'\n", key)
+	}
+	if val != "bar\nbaz" {
+		t.Errorf("Expected `bar\nbaz', but got `%s'\n", val)
+	}
+}
+
+func TestReadPointDataWithNewLine2(t *testing.T) {
+	testData := " foo = bar\\\\\\baz"
+	key, val, err := readPointData(testData)
+	if err != nil {
+		t.Errorf("%s: Error occurred, but shouldn't: %s",
+			testData, err)
+	}
+
+	if key != "foo" {
+		t.Errorf("Expected `foo', but got `%s'\n", key)
+	}
+	if val != "bar\n\\baz" {
+		t.Errorf("Expected `bar\n\\baz', but got `%s'\n", val)
+	}
+}
+
 var testColorDef = map[string]string{
 	"blue": "#00f",
 }
