@@ -80,7 +80,7 @@ class Waypoint {
     }
 
     draw(ctxt: RenderingContext, rangeLeft: number, rangeTop: number) {
-        if (this.type == 0) {
+        if (this.type == 1) {
             ctxt.font = "bold 24px sans-serif";
             const textWidth = ctxt.measureText(this.name).width;
             ctxt.fillStyle = 'rgba(0, 0, 0, .6)';
