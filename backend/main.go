@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/fcgi"
+	"os"
 
 	"github.com/ChronoscopeAppLab/minecraft-web-map/backend/env"
 	"github.com/ChronoscopeAppLab/minecraft-web-map/backend/mapdata"
@@ -50,6 +51,7 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
+		os.Chmod(env.SocketPath, 0666)
 
 		log.Fatal(fcgi.Serve(l, nil))
 	}
