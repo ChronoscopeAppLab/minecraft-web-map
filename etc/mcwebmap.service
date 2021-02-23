@@ -4,7 +4,7 @@
 Description=Minecraft Web Map (Back-end Server)
 
 [Service]
-ExecStart=/opt/minecraft-web-map/backend/backend --mode production --socket-path /run/mcwebmap.sock --metadata-path /opt/minecraft-web-map/mapmeta
+ExecStart=/opt/mcmap/backend --mode production --socket-path /run/mcwebmap.sock --metadata-path /opt/mcmap/mapmeta
 ExecReload=/usr/bin/kill -WINCH $MAINPID
 ExecStop=/usr/bin/kill -USR1 $MAINPID
 Type=simple
