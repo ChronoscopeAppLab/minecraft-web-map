@@ -20,6 +20,8 @@ func main() {
 		"Path to map metadata.")
 	flag.StringVar(&env.SocketPath, "socket-path", "/tmp/mcwebmap.sock",
 		"Path to map metadata.")
+	flag.StringVar(&env.BlockInfoSocketPath, "block-info-sock-path", "/tmp/mcmap.sock",
+		"Path to socket to retrive block info.")
 	flag.Parse()
 
 	if env.Debug {

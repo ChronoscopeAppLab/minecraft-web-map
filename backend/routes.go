@@ -11,6 +11,7 @@ import (
 
 func initRoutes() {
 	http.HandleFunc("/api/points", server.ServePoints)
+	http.HandleFunc("/api/block", server.ServeBlock)
 
 	// If it's debug mode, serve static files for convenience.
 	if env.Debug {
