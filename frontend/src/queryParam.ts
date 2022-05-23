@@ -12,15 +12,15 @@ function parseQueryParam() {
         return;
     }
 
-    url.substr(queryStart + 1)
+    url.substring(queryStart + 1)
         .split('&')
         .map((param: string) => {
             const kvSepPos = param.indexOf('=');
             if (kvSepPos < 0) {
                 return [param];
             }
-            return [param.substr(0, kvSepPos),
-                    param.substr(kvSepPos + 1)];
+            return [param.substring(0, kvSepPos),
+                    param.substring(kvSepPos + 1)];
         })
         .forEach((param: string[]) => {
             if (param.length == 1) {

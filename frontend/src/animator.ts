@@ -1,7 +1,6 @@
 // Copyright (C) 2021 Chronoscope. All rights reserved.
 
 import AnimationInterpolator from './animationInterpolator';
-import * as constants from './constants.ts';
 
 export default class Animator {
     duration: number;

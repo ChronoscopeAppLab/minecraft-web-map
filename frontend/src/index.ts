@@ -147,12 +147,11 @@ let chunkRange: number[] = [ 0, 0, 0, 0 ];
 let scale: number = 1.0;
 let origScale: number = scale;
 let oldDistance: number = 0;
-let touchZoomTimeOut: number;
 let touchZooming: boolean = false;
 let touchZoomCx: number;
 let touchZoomCy: number;
 
-let icons = new Array(4).fill(0).map(e => { return new Array(2); });
+let icons = new Array(4).fill(0).map(_ => { return new Array(2); });
 
 const pinWidget = new PinOverlayWidget();
 
@@ -397,23 +396,12 @@ let isMouseDown: boolean;
 let isMouseMoved: boolean;
 let prevX: number;
 let prevY: number;
-let prevMoveTime: number
-let velocityX: number
-let velocityY: number;
-let inertiaAnimator: Animator = null;
 
 function dragStart(e: PointingDeviceCoord) {
-    if (inertiaAnimator != null) {
-        inertiaAnimator.cancel();
-        inertiaAnimator = null;
-    }
     isMouseDown = true;
     isMouseMoved = false;
     prevX = e.x - canvasRect.left;
     prevY = e.y - canvasRect.top;
-    velocityX = 0;
-    velocityY = 0;
-    prevMoveTime = -1;
 }
 
 function mouseDown(e: MouseEvent) {
@@ -472,12 +460,6 @@ function dragMap(e: PointingDeviceCoord) {
 
     const currentX = e.x - canvasRect.left;
     const currentY = e.y - canvasRect.top;
-    const now = Date.now();
-    if (prevMoveTime >= 0) {
-        velocityX = (currentX - prevX) / (now - prevMoveTime);
-        velocityY = (currentY - prevY) / (now - prevMoveTime);
-    }
-    prevMoveTime = now;
 
     if (!touchZooming) {
         const moveX = (prevX - currentX) / scale;
@@ -503,28 +485,6 @@ function mouseUp() {
     if (!isMouseDown) return;
 
     isMouseDown = false;
-    if (!isMouseMoved) return;
-    if (touchZooming) return;
-
-    let vx = velocityX;
-    let vy = velocityY;
-    const ax = -vx / 800;
-    const ay = -vy / 800;
-    let prevTime = 0;
-    inertiaAnimator = new Animator(800, (ratio: number) => {
-        const t = 800 * ratio;
-        const dt = t - prevTime;
-        vx += ax * dt;
-        vy += ay * dt;
-        offsetX -= vx * dt + 0.5 * ax * dt * dt;
-        offsetY -= vy * dt + 0.5 * ay * dt * dt;
-
-        prevTime = t;
-
-        normalizeChunkOffset();
-        invalidate();
-    });
-    inertiaAnimator.start();
 }
 
 function touchStart(e: TouchEvent) {
@@ -653,7 +613,7 @@ function onContextMenuSelected(id: string, menuX: number, menuY: number) {
                                  ', Y=' + blockInfo['altitude']
                 });
             })
-            .catch((error) => {
+            .catch((_) => {
                 showDetailPanel({
                     name : '指定したポイント',
                     x : x,
@@ -813,13 +773,13 @@ function loadPoints() {
 
             invalidate();
         })
-        .catch((error) => { networkError.show(); });
+        .catch((_) => { networkError.show(); });
 }
 
 function shouldBeWhiteText(hexcolor: string): boolean {
-    var r = parseInt(hexcolor.substr(1, 2), 16);
-    var g = parseInt(hexcolor.substr(3, 2), 16);
-    var b = parseInt(hexcolor.substr(5, 2), 16);
+    var r = parseInt(hexcolor.substring(1, 2), 16);
+    var g = parseInt(hexcolor.substring(3, 2), 16);
+    var b = parseInt(hexcolor.substring(5, 2), 16);
     return ((((r * 299) + (g * 587) + (b * 114)) / 1000) < 128);
 }
 
@@ -979,8 +939,6 @@ window.addEventListener('load', () => {
 
             requestAnimationFrame(internalOnDraw);
 
-            const infoPanel = document.getElementById('info-panel');
-
             document.getElementById('zoom-in-button')
                 .addEventListener('click', zoomIn);
             document.getElementById('zoom-out-button')
@@ -1033,7 +991,7 @@ window.addEventListener('load', () => {
 
             loadPoints();
         })
-        .catch((error) => { networkError.show(); });
+        .catch((_) => { networkError.show(); });
 
     let dimensionText = '';
     if (dimensionNumber === 0) dimensionText = 'Overworld';
