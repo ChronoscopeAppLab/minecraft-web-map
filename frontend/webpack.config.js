@@ -1,5 +1,3 @@
-// Copyright (C) 2021 Chronoscope. All rights reserved.
-
 const path = require('path');
 const CopyPlugin = require("copy-webpack-plugin");
 const HtmlWebpackPlugin = require('html-webpack-plugin');

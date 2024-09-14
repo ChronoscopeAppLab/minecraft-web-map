@@ -1,7 +1,4 @@
 #!/usr/bin/env python
-
-# Copyright (C) 2021 Chronoscope. All rights reserved.
-
 import os
 import signal
 from os import path

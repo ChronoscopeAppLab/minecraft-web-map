@@ -1,5 +1,3 @@
-// Copyright (C) 2021 Chronoscope. All rights reserved.
-
 package mapdata
 
 import (
@@ -140,7 +138,7 @@ func createWaypoint(name string, values map[string]string,
 	if err != nil {
 		return nil, err
 	}
-	result.ZoomLevel = zoomLevel;
+	result.ZoomLevel = zoomLevel
 
 	return result, nil
 }

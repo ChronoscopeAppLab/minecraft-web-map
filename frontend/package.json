@@ -13,8 +13,8 @@
         "type": "git",
         "url": "git+https://github.com/ChronoscopeAppLab/minecraft-web-map.git"
     },
-    "author": "Koki Fukuda",
-    "license": "UNLICENSED",
+    "author": "Chronoscope",
+    "license": "MIT",
     "bugs": {
         "url": "https://github.com/ChronoscopeAppLab/minecraft-web-map/issues"
     },

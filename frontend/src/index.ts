@@ -1,5 +1,3 @@
-// Copyright (C) 2021 Chronoscope. All rights reserved.
-
 import axios from 'axios';
 
 import AnimationInterpolator from './animationInterpolator';

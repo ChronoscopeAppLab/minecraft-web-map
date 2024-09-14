@@ -1,5 +1,3 @@
-// Copyright (C) 2021 Chronoscope. All rights reserved.
-
 package presentation
 
 import "github.com/ChronoscopeAppLab/minecraft-web-map/backend/mapdata"

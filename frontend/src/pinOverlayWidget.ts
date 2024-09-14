@@ -1,5 +1,3 @@
-// Copyright (C) 2021 Chronoscope. All rights reserved.
-
 import AnimationInterpolator from './animationInterpolator';
 import Animator from './animator';
 import * as constants from './constants';

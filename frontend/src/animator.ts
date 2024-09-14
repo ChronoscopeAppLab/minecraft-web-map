@@ -1,5 +1,3 @@
-// Copyright (C) 2021 Chronoscope. All rights reserved.
-
 import AnimationInterpolator from './animationInterpolator';
 
 export default class Animator {

@@ -1,5 +1,3 @@
-// Copyright (C) 2021 Chronoscope. All rights reserved.
-
 import DrawingContext from './drawingContext';
 
 export let isDirty = true;

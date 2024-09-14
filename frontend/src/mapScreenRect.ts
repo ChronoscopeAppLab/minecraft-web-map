@@ -1,5 +1,3 @@
-// Copyright (C) 2021 Chronoscope. All rights reserved.
-
 import Rect from './rect';
 
 export default class MapScreenRect implements Rect {

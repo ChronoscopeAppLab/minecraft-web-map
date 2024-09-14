@@ -1,5 +1,3 @@
-// Copyright (C) 2021 Chronoscope. All rights reserved.
-
 let networkErrorDisplayed: boolean = false;
 
 export function show() {

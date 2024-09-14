@@ -1,5 +1,3 @@
-// Copyright (C) 2021 Chronoscope. All rights reserved.
-
 export default class PointingDeviceCoord {
     x: number;
     y: number;
