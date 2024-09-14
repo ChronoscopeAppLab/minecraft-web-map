@@ -5,6 +5,5 @@ package env
 var (
 	Debug               = false
 	MetadataPath        = ""
-	SocketPath          = ""
 	BlockInfoSocketPath = ""
 )
