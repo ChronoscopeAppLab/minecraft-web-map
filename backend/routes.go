@@ -9,9 +9,5 @@ import (
 
 func initRoutes(config env.Config) {
 	http.HandleFunc("/api/points", server.ServePoints)
-
-	// If it's debug mode, serve static files for convenience.
-	if config.Debug {
-		http.Handle("/", http.FileServer(http.Dir(config.StaticPath)))
-	}
+	http.Handle("/", http.FileServer(http.Dir(config.StaticPath)))
 }

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -15,12 +14,6 @@ func main() {
 	var config env.Config
 	if err := envconfig.Process("", &config); err != nil {
 		log.Fatal(err)
-	}
-
-	if config.Debug {
-		fmt.Println("Backend is debug mode")
-	} else {
-		fmt.Println("Backend is production mode")
 	}
 
 	if err := mapdata.ReloadMetadata(config); err != nil {
