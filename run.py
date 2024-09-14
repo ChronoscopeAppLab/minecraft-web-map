@@ -26,7 +26,11 @@ def main():
 
     server_proc = subprocess.Popen([
         path.join(base_path, 'backend', 'backend'),
-        '--debug', '--metadata-path', path.join(base_path, 'mapmeta')])
+        '--debug', '--metadata-path', path.join(base_path, 'mapmeta')],
+        env={
+            'DEBUG': 'true',
+            'METADATA_PATH': path.join(base_path, 'mapmeta'),
+        })
     signal.signal(signal.SIGINT, lambda signum, frame:
                   server_proc.terminate())
 

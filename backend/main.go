@@ -3,7 +3,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"log"
 	"net"
@@ -11,28 +10,27 @@ import (
 
 	"github.com/ChronoscopeAppLab/minecraft-web-map/backend/env"
 	"github.com/ChronoscopeAppLab/minecraft-web-map/backend/mapdata"
+	"github.com/kelseyhightower/envconfig"
 )
 
 func main() {
-	flag.BoolVar(&env.Debug, "debug", true, "Run server in debug mode.")
-	flag.StringVar(&env.MetadataPath, "metadata-path", "../mapmeta",
-		"Path to map metadata.")
-	flag.StringVar(&env.BlockInfoSocketPath, "block-info-sock-path", "/tmp/mcmap.sock",
-		"Path to socket to retrive block info.")
-	flag.Parse()
+	var config env.Config
+	if err := envconfig.Process("", &config); err != nil {
+		log.Fatal(err)
+	}
 
-	if env.Debug {
+	if config.Debug {
 		fmt.Println("Back-end is debug mode")
 	} else {
 		fmt.Println("Back-end is production mode")
 	}
 
-	if err := mapdata.ReloadMetadata(); err != nil {
+	if err := mapdata.ReloadMetadata(config); err != nil {
 		log.Fatalf("Failed to load map metadata from %s: %s\n",
-			env.MetadataPath, err)
+			config.MetadataPath, err)
 	}
 
-	initRoutes()
+	initRoutes(config)
 
 	l, err := net.Listen("tcp", ":8000")
 	if err != nil {

@@ -9,11 +9,11 @@ import (
 	"github.com/ChronoscopeAppLab/minecraft-web-map/backend/server"
 )
 
-func initRoutes() {
+func initRoutes(config env.Config) {
 	http.HandleFunc("/api/points", server.ServePoints)
 
 	// If it's debug mode, serve static files for convenience.
-	if env.Debug {
+	if config.Debug {
 		http.Handle("/", http.FileServer(http.Dir(".")))
 	}
 }

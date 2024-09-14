@@ -11,16 +11,16 @@ import (
 
 var waypoints [3][]Waypoint
 
-func ReloadMetadata() error {
+func ReloadMetadata(config env.Config) error {
 	log.Println("Reloading metadata...")
 
-	colorDef, err := loadColors(filepath.Join(env.MetadataPath, "colors.txt"))
+	colorDef, err := loadColors(filepath.Join(config.MetadataPath, "colors.txt"))
 	if err != nil {
 		return err
 	}
 
 	for i, dimen := range env.Dimensions {
-		waypointDir := filepath.Join(env.MetadataPath, "waypoints", dimen)
+		waypointDir := filepath.Join(config.MetadataPath, "waypoints", dimen)
 		waypointDef, err := loadWaypoints(colorDef, waypointDir)
 		if err != nil {
 			return err
