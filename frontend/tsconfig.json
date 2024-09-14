@@ -2,8 +2,9 @@
     "compilerOptions": {
         "outDir": "./dist/",
         "noImplicitAny": true,
-        "module": "commonjs",
-        "target": "es5",
+        "module": "ESNext",
+        "target": "ES2023",
+        "moduleResolution": "Bundler",
         "allowJs": true
     }
 }
