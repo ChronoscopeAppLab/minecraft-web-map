@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"errors"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -229,7 +228,7 @@ func loadWaypointFile(path string, colorDef map[string]string) ([]Waypoint, erro
 }
 
 func loadWaypoints(colorDef map[string]string, source_dir string) ([]Waypoint, error) {
-	dirents, err := ioutil.ReadDir(source_dir)
+	dirents, err := os.ReadDir(source_dir)
 	if err != nil {
 		return nil, err
 	}
@@ -237,9 +236,8 @@ func loadWaypoints(colorDef map[string]string, source_dir string) ([]Waypoint, e
 	var result []Waypoint
 
 	for _, entry := range dirents {
-		if !entry.IsDir() && filepath.Ext(entry.Name()) == ".txt" {
-			waypoints, err := loadWaypointFile(filepath.Join(source_dir,
-				entry.Name()), colorDef)
+		if entry.Type().IsRegular() && filepath.Ext(entry.Name()) == ".txt" {
+			waypoints, err := loadWaypointFile(filepath.Join(source_dir, entry.Name()), colorDef)
 			if err != nil {
 				return nil, err
 			}
