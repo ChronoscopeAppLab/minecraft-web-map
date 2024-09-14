@@ -608,9 +608,7 @@ function onContextMenuSelected(id: string, menuX: number, menuY: number) {
                     name : '指定したポイント',
                     x : x,
                     y : z,
-                    type : 1,
-                    detail : '表面: ' + blockInfo['block']　+
-                                 ', Y=' + blockInfo['altitude']
+                    type : 1
                 });
             })
             .catch((_) => {
@@ -618,8 +616,7 @@ function onContextMenuSelected(id: string, menuX: number, menuY: number) {
                     name : '指定したポイント',
                     x : x,
                     y : z,
-                    type : 1,
-                    detail : '表面の情報がありません'
+                    type : 1
                 });
             });
     }
@@ -856,7 +853,7 @@ function showDetailPanel(point: any) {
     document.getElementById('detail-panel-title').innerText = point['name'];
     document.getElementById('detail-panel-subtitle').innerText =
         'X=' + point['x'] + ', Z=' + point['y'];
-    document.getElementById('detail-panel-detail').innerText = point['detail'];
+    document.getElementById('detail-panel-detail').innerText = point['detail'] ?? '';
     if (point['image']) {
         document.getElementById('detail-panel').classList.remove('no-image');
         document.getElementById('detail-panel-image').style.backgroundImage =
