@@ -14,6 +14,6 @@ func initRoutes(config env.Config) {
 
 	// If it's debug mode, serve static files for convenience.
 	if config.Debug {
-		http.Handle("/", http.FileServer(http.Dir(".")))
+		http.Handle("/", http.FileServer(http.Dir(config.StaticPath)))
 	}
 }

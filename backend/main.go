@@ -20,9 +20,9 @@ func main() {
 	}
 
 	if config.Debug {
-		fmt.Println("Back-end is debug mode")
+		fmt.Println("Backend is debug mode")
 	} else {
-		fmt.Println("Back-end is production mode")
+		fmt.Println("Backend is production mode")
 	}
 
 	if err := mapdata.ReloadMetadata(config); err != nil {
