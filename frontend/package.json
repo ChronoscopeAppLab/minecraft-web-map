@@ -24,7 +24,7 @@
         "copy-webpack-plugin": "^7.0.0",
         "css-loader": "^5.0.2",
         "html-webpack-plugin": "^5.2.0",
-        "sass": "^1.32.8",
+        "sass": "^1.78.0",
         "sass-loader": "^11.0.1",
         "style-loader": "^2.0.0",
         "ts-loader": "^8.0.17",
