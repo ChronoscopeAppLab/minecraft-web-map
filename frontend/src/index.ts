@@ -23,12 +23,11 @@ class MapChunk {
     y: number
     image: HTMLImageElement
 
-    constructor(x: number, y: number) {
+    constructor(prefix: string, x: number, y: number) {
         this.x = x;
         this.y = y;
         this.image = new Image;
-        this.image.src =
-            '/map/' + dimensionName + '/' + x + ',' + y + '.png';
+        this.image.src = `${prefix}/${dimensionName}/${x},${y}.png`;
         this.image.addEventListener('load', invalidate);
     }
 
@@ -218,7 +217,7 @@ function getIcon(type: number, isWhite: boolean = false): HTMLImageElement {
     return null;
 }
 
-function retriveChunks() {
+function retriveChunks(prefix: string) {
     let chunksInRange = [];
     for (let x = chunkX;; ++x) {
         if (((x - chunkX - 1) * CHUNK_WIDTH - offsetX) * scale >= width) break;
@@ -234,7 +233,7 @@ function retriveChunks() {
     chunksInRange.forEach((e) => {
         if (typeof maps.find((f) => f.x === e[0] && f.y === e[1]) ===
             'undefined') {
-            maps.push(new MapChunk(e[0], e[1]));
+            maps.push(new MapChunk(prefix, e[0], e[1]));
         }
     });
 }
@@ -250,20 +249,20 @@ function runCacheGc() {
     }
 }
 
-function internalOnDraw() {
+function internalOnDraw(prefix: string) {
     if (!isDirty) {
         if (Math.random() < 0.01) {
             runCacheGc();
         }
 
-        requestAnimationFrame(internalOnDraw);
+        requestAnimationFrame(() => internalOnDraw(prefix));
 
         return;
     }
 
     setInvalidated();
 
-    retriveChunks();
+    retriveChunks(prefix);
 
     const ctxt = (<HTMLCanvasElement>document.getElementById('map')).getContext('2d');
 
@@ -297,7 +296,7 @@ function internalOnDraw() {
 
     pinWidget.draw(globalDrawingContext);
 
-    requestAnimationFrame(internalOnDraw);
+    requestAnimationFrame(() => internalOnDraw(prefix));
 }
 
 let canvasRect: DOMRect;
@@ -924,69 +923,72 @@ function handleContextMenu(e: any) {
     onContextMenuSelected(e.target.id, contextMenuX, contextMenuY);
 }
 
-window.addEventListener('load', () => {
-    axios.get('/map/' + dimensionName + '/chunk_range.json')
-        .then((response) => {
-            chunkRange = response.data;
-            adjustCanvas();
+window.addEventListener('load', async () => {
+    const initialState = await fetch('/api/initial_state.json').then(resp => resp.json());
 
-            initMapPosition();
+    try {
+        chunkRange = await fetch(`${initialState.prefix}/${dimensionName}/chunk_range.json`).then(resp => resp.json());
+    } catch(e) {
+        networkError.show();
+    }
 
-            requestAnimationFrame(internalOnDraw);
+    adjustCanvas();
 
-            document.getElementById('zoom-in-button')
-                .addEventListener('click', zoomIn);
-            document.getElementById('zoom-out-button')
-                .addEventListener('click', zoomOut);
-            document.getElementById('zoom-orig-button')
-                .addEventListener('click', zoomOrig);
+    initMapPosition();
 
-            document.getElementById('search-box')
-                .addEventListener('click', showSearchList);
-            document.getElementById('search-box')
-                .addEventListener('input', searchPoint);
+    requestAnimationFrame(() => internalOnDraw(initialState.prefix));
 
-            document.getElementById('search-back-button')
-                .addEventListener('click', () => {
-                    if (searchListShown) {
-                        hideSearchList();
-                    } else if (detailPanelShown) {
-                        if (document.getElementById('detail-panel')
-                                .classList.contains('compact-detail-panel')) {
-                            hideDetailPanel();
-                        } else {
-                            document.getElementById('detail-panel')
-                                .classList.add('compact-detail-panel');
-                            const origOffsetX = offsetX;
-                            const origChunkX = chunkX;
+    document.getElementById('zoom-in-button')
+        .addEventListener('click', zoomIn);
+    document.getElementById('zoom-out-button')
+        .addEventListener('click', zoomOut);
+    document.getElementById('zoom-orig-button')
+        .addEventListener('click', zoomOrig);
 
-                            new Animator(150, (ratio: number) => {
-                                offsetX = origOffsetX + 210 * ratio / scale;
-                                chunkX = origChunkX;
+    document.getElementById('search-box')
+        .addEventListener('click', showSearchList);
+    document.getElementById('search-box')
+        .addEventListener('input', searchPoint);
 
-                                normalizeChunkOffset();
+    document.getElementById('search-back-button')
+        .addEventListener('click', () => {
+            if (searchListShown) {
+                hideSearchList();
+            } else if (detailPanelShown) {
+                if (document.getElementById('detail-panel')
+                        .classList.contains('compact-detail-panel')) {
+                    hideDetailPanel();
+                } else {
+                    document.getElementById('detail-panel')
+                        .classList.add('compact-detail-panel');
+                    const origOffsetX = offsetX;
+                    const origChunkX = chunkX;
 
-                                invalidate();
-                            }).withEndAction(() => { leftOffset = 0; }).start();
-                        }
-                    }
-                });
-            document.getElementById('search-button')
-                .addEventListener('click', () => {
-                    document.getElementById('search-box').focus();
-                    showSearchList();
-                });
-            document.getElementById('search-clear-button')
-                .addEventListener('click', () => {
-                    (<HTMLInputElement>document.getElementById('search-box')).value = '';
-                    searchPoint();
-                });
-            document.querySelector('.compact-detail-panel')
-                .addEventListener('click', expandDetailPanel);
+                    new Animator(150, (ratio: number) => {
+                        offsetX = origOffsetX + 210 * ratio / scale;
+                        chunkX = origChunkX;
 
-            loadPoints();
-        })
-        .catch((_) => { networkError.show(); });
+                        normalizeChunkOffset();
+
+                        invalidate();
+                    }).withEndAction(() => { leftOffset = 0; }).start();
+                }
+            }
+        });
+    document.getElementById('search-button')
+        .addEventListener('click', () => {
+            document.getElementById('search-box').focus();
+            showSearchList();
+        });
+    document.getElementById('search-clear-button')
+        .addEventListener('click', () => {
+            (<HTMLInputElement>document.getElementById('search-box')).value = '';
+            searchPoint();
+        });
+    document.querySelector('.compact-detail-panel')
+        .addEventListener('click', expandDetailPanel);
+
+    loadPoints();
 
     let dimensionText = '';
     if (dimensionNumber === 0) dimensionText = 'Overworld';
