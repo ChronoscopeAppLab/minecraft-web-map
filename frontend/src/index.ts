@@ -1,5 +1,3 @@
-import axios from 'axios';
-
 import AnimationInterpolator from './animationInterpolator';
 import Animator from './animator';
 import * as constants from './constants';
@@ -598,24 +596,12 @@ function onContextMenuSelected(id: string, menuX: number, menuY: number) {
         }
         updateUrl(x, z);
 
-        axios.get('/api/block?x=' + x + '&z=' + z + '&dimen=' + dimensionName)
-            .then((response) => {
-                const blockInfo = response.data;
-                showDetailPanel({
-                    name : '指定したポイント',
-                    x : x,
-                    y : z,
-                    type : 1
-                });
-            })
-            .catch((_) => {
-                showDetailPanel({
-                    name : '指定したポイント',
-                    x : x,
-                    y : z,
-                    type : 1
-                });
-            });
+        showDetailPanel({
+            name : '指定したポイント',
+            x : x,
+            y : z,
+            type : 1
+        });
     }
 }
 
@@ -735,39 +721,41 @@ function initializeSearchList() {
     document.getElementById('search-list').appendChild(fragment);
 }
 
-function loadPoints() {
-    axios.get('/api/points?dimen=' + dimensionName)
-        .then((response) => {
-            points = response.data.map((e: any) => new Waypoint(e));
+async function loadPoints() {
+    const data = await fetch('/api/points?dimen=' + dimensionName).then(resp => resp.json());
 
-            const canvas = <HTMLCanvasElement>document.getElementById('map');
-            canvas.addEventListener('mousedown', mouseDown);
-            canvas.addEventListener('mousemove', mouseMove);
-            canvas.addEventListener('mouseup', mouseUp);
-            canvas.addEventListener('mouseleave', mouseUp);
-            canvas.addEventListener('touchstart', touchStart);
-            canvas.addEventListener('touchmove', touchMove);
-            canvas.addEventListener('touchend', touchEnd);
-            canvas.addEventListener('click', click);
-            canvas.addEventListener('wheel', wheel);
-            canvas.addEventListener('contextmenu', contextMenu);
+    try {
+        points = data.map((e: any) => new Waypoint(e));
 
-            canvas.getContext('2d').imageSmoothingEnabled = false;
+        const canvas = <HTMLCanvasElement>document.getElementById('map');
+        canvas.addEventListener('mousedown', mouseDown);
+        canvas.addEventListener('mousemove', mouseMove);
+        canvas.addEventListener('mouseup', mouseUp);
+        canvas.addEventListener('mouseleave', mouseUp);
+        canvas.addEventListener('touchstart', touchStart);
+        canvas.addEventListener('touchmove', touchMove);
+        canvas.addEventListener('touchend', touchEnd);
+        canvas.addEventListener('click', click);
+        canvas.addEventListener('wheel', wheel);
+        canvas.addEventListener('contextmenu', contextMenu);
 
-            initializeSearchList();
+        canvas.getContext('2d').imageSmoothingEnabled = false;
 
-            const paramX = queryParam('x');
-            const paramZ = queryParam('z');
-            if (paramX !== null && paramZ !== null) {
-                const x = parseInt(paramX);
-                const z = parseInt(paramZ);
-                pinWidget.showAt(x, z);
-                centerizeCoord(x, z);
-            }
+        initializeSearchList();
 
-            invalidate();
-        })
-        .catch((_) => { networkError.show(); });
+        const paramX = queryParam('x');
+        const paramZ = queryParam('z');
+        if (paramX !== null && paramZ !== null) {
+            const x = parseInt(paramX);
+            const z = parseInt(paramZ);
+            pinWidget.showAt(x, z);
+            centerizeCoord(x, z);
+        }
+
+        invalidate();
+    } catch(e) {
+        networkError.show();
+    }
 }
 
 function shouldBeWhiteText(hexcolor: string): boolean {
@@ -930,6 +918,7 @@ window.addEventListener('load', async () => {
         chunkRange = await fetch(`${initialState.prefix}/${dimensionName}/chunk_range.json`).then(resp => resp.json());
     } catch(e) {
         networkError.show();
+        return;
     }
 
     adjustCanvas();
