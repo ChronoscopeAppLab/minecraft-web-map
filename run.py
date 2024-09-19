@@ -7,6 +7,9 @@ import subprocess
 def main():
     base_path = path.dirname(path.abspath(__file__))
 
+    if 'ASSETS_PREFIX' not in os.environ:
+        os.environ['ASSETS_PREFIX'] = 'http://localhost:8000/map'
+
     server_proc = subprocess.Popen(['go', 'run', '.'],
         env=dict(
             os.environ,
