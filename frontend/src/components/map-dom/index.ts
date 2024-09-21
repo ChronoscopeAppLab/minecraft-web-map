@@ -7,7 +7,6 @@ import NavDrawer from './navDrawer';
 import * as networkError from './networkError';
 import PinOverlayWidget from './pinOverlayWidget';
 import PointingDeviceCoord from './pointingDeviceCoord';
-import queryParam from './queryParam';
 import {isDirty, invalidate, setInvalidated} from './drawingComponent';
 import {Spot} from '../../api/types';
 
@@ -128,15 +127,22 @@ let icons = new Array(4).fill(0).map((_) => {
 
 const pinWidget = new PinOverlayWidget();
 
-function getDimension(returnString: boolean = false): string | number {
-  let dim = queryParam('dim');
-  if (dim === '1' || dim === 'nether') return returnString ? 'nether' : 1;
-  if (dim === '2' || dim === 'end') return returnString ? 'end' : 2;
-  return returnString ? 'overworld' : 0;
+function getDimension(): number {
+  const params = new URLSearchParams(window.location.search);
+  let dim = params.get('dimen');
+  switch (dim) {
+    case 'overworld':
+      return 0;
+    case 'nether':
+      return 1;
+    case 'end':
+      return 2;
+  }
+  return 0;
 }
 
 const dimensionNumber = getDimension();
-const dimensionName = getDimension(true);
+const dimensionName = ['overworld', 'nether', 'end'][dimensionNumber];
 
 function internalCenterizeCoord(x: number, y: number) {
   chunkX = 0;
@@ -453,25 +459,6 @@ function hideDetailPanel() {
   document.getElementById('detail-panel').classList.add('compact-detail-panel');
 }
 
-function expandDetailPanel() {
-  document.getElementById('detail-panel').classList.remove('compact-detail-panel');
-  const origOffsetX = offsetX;
-  const origChunkX = chunkX;
-
-  new Animator(150, (ratio: number) => {
-    offsetX = origOffsetX - (210 * ratio) / scale;
-    chunkX = origChunkX;
-
-    normalizeChunkOffset();
-
-    invalidate();
-  })
-    .withEndAction(() => {
-      leftOffset = 210;
-    })
-    .start();
-}
-
 function handleContextMenu(e: any) {
   hideContextMenu();
   onContextMenuSelected(e.target.id, contextMenuX, contextMenuY);
@@ -505,8 +492,6 @@ export class Map {
     initMapPosition();
 
     this.frameRequestId = requestAnimationFrame(this.mainLoop.bind(this));
-
-    document.querySelector('.compact-detail-panel').addEventListener('click', expandDetailPanel);
 
     this.setupListners(this.canvas);
     points = this.spots.map((spot: Spot) => new Waypoint(spot));
