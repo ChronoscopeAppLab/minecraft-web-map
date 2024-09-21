@@ -233,53 +233,6 @@ function runCacheGc() {
   }
 }
 
-function internalOnDraw(canvas: HTMLCanvasElement, prefix: string) {
-  if (!isDirty) {
-    if (Math.random() < 0.01) {
-      runCacheGc();
-    }
-
-    requestAnimationFrame(() => internalOnDraw(canvas, prefix));
-
-    return;
-  }
-
-  setInvalidated();
-
-  retriveChunks(prefix);
-
-  const ctxt = canvas.getContext('2d');
-
-  ctxt.clearRect(0, 0, width, height);
-
-  for (let i = 0; i < maps.length; ++i) {
-    const imageChunk = maps.shift();
-    imageChunk.draw(ctxt);
-    maps.push(imageChunk);
-  }
-
-  /* スケールする前の範囲（points.json の内容をそのまま使うため） */
-  const rangeLeft = chunkX * CHUNK_WIDTH + offsetX;
-  const rangeRight = rangeLeft + width / scale;
-  const rangeTop = chunkY * CHUNK_HEIGHT + offsetY;
-  const rangeBottom = rangeTop + height / scale;
-
-  // XXX
-  globalDrawingContext.setCenterCoord(rangeLeft + (rangeRight - rangeLeft) / 2, rangeTop + (rangeBottom - rangeTop) / 2);
-  globalDrawingContext.setSize(rangeRight - rangeLeft, rangeBottom - rangeTop);
-  globalDrawingContext.setMapScale(scale);
-
-  for (let i = 0; i < points.length; ++i) {
-    if (points[i].isInBox(rangeTop, rangeRight, rangeBottom, rangeLeft)) {
-      points[i].draw(ctxt, rangeLeft, rangeTop);
-    }
-  }
-
-  pinWidget.draw(globalDrawingContext);
-
-  requestAnimationFrame(() => internalOnDraw(canvas, prefix));
-}
-
 let canvasRect: DOMRect;
 
 let endCond: any = {};
@@ -862,6 +815,7 @@ function handleContextMenu(e: any) {
 export class Map {
   private canvas: HTMLCanvasElement;
   private prefix: string;
+  private frameRequestId: number | null;
 
   constructor(canvas: HTMLCanvasElement, prefix: string) {
     this.canvas = canvas;
@@ -885,7 +839,7 @@ export class Map {
 
     initMapPosition();
 
-    requestAnimationFrame(() => internalOnDraw(this.canvas, this.prefix));
+    this.frameRequestId = requestAnimationFrame(this.mainLoop.bind(this));
 
     document.getElementById('search-box').addEventListener('click', showSearchList);
     document.getElementById('search-box').addEventListener('input', searchPoint);
@@ -947,7 +901,10 @@ export class Map {
   }
 
   public unbind() {
-    window.removeEventListener('resize', this.handleResize.bind(this));
+    removeEventListener('resize', this.handleResize.bind(this));
+    if (this.frameRequestId !== null) {
+      cancelAnimationFrame(this.frameRequestId);
+    }
   }
 
   zoomIn() {
@@ -960,6 +917,53 @@ export class Map {
 
   zoomOrig() {
     setScale(scale, 1);
+  }
+
+  private mainLoop() {
+    if (!isDirty) {
+      if (Math.random() < 0.01) {
+        runCacheGc();
+      }
+
+      this.frameRequestId = requestAnimationFrame(this.mainLoop.bind(this));
+
+      return;
+    }
+
+    setInvalidated();
+
+    retriveChunks(this.prefix);
+
+    const ctxt = this.canvas.getContext('2d');
+
+    ctxt.clearRect(0, 0, width, height);
+
+    for (let i = 0; i < maps.length; ++i) {
+      const imageChunk = maps.shift();
+      imageChunk.draw(ctxt);
+      maps.push(imageChunk);
+    }
+
+    /* スケールする前の範囲（points.json の内容をそのまま使うため） */
+    const rangeLeft = chunkX * CHUNK_WIDTH + offsetX;
+    const rangeRight = rangeLeft + width / scale;
+    const rangeTop = chunkY * CHUNK_HEIGHT + offsetY;
+    const rangeBottom = rangeTop + height / scale;
+
+    // XXX
+    globalDrawingContext.setCenterCoord(rangeLeft + (rangeRight - rangeLeft) / 2, rangeTop + (rangeBottom - rangeTop) / 2);
+    globalDrawingContext.setSize(rangeRight - rangeLeft, rangeBottom - rangeTop);
+    globalDrawingContext.setMapScale(scale);
+
+    for (let i = 0; i < points.length; ++i) {
+      if (points[i].isInBox(rangeTop, rangeRight, rangeBottom, rangeLeft)) {
+        points[i].draw(ctxt, rangeLeft, rangeTop);
+      }
+    }
+
+    pinWidget.draw(globalDrawingContext);
+
+    this.frameRequestId = requestAnimationFrame(this.mainLoop.bind(this));
   }
 }
 
