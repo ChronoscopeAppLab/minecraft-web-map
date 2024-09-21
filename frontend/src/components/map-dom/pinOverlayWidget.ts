@@ -38,7 +38,7 @@ export default class PinOverlayWidget extends DrawingComponent {
     this.scale = 1;
   }
 
-  setPointCoord(x: number, y: number) {
+  private setPointCoord(x: number, y: number) {
     this.x = x;
     this.y = y;
 
@@ -47,6 +47,11 @@ export default class PinOverlayWidget extends DrawingComponent {
 
   showAt(x: number, y: number) {
     if (this.getIsVisible()) {
+      if (this.scale === 0) {
+        console.log('Refusing move animation because scale is 0');
+        return;
+      }
+
       this.setMoveTarget(x, y);
 
       new Animator(1000, (ratio: number) => {
