@@ -627,18 +627,6 @@ function wheel(e: WheelEvent) {
   invalidate();
 }
 
-function zoomIn() {
-  setScale(scale, scale + 0.5);
-}
-
-function zoomOut() {
-  setScale(scale, scale - 0.5);
-}
-
-function zoomOrig() {
-  setScale(scale, 1);
-}
-
 function initMapPosition() {
   if (dimensionNumber === 0) {
     chunkX = -3;
@@ -871,85 +859,109 @@ function handleContextMenu(e: any) {
   onContextMenuSelected(e.target.id, contextMenuX, contextMenuY);
 }
 
-export const initializeMap = async (canvas: HTMLCanvasElement, prefix: string) => {
-  try {
-    chunkRange = await fetch(`${prefix}/${dimensionName}/chunk_range.json`).then((resp) => resp.json());
-  } catch (e) {
-    networkError.show();
-    return;
+export class Map {
+  private canvas: HTMLCanvasElement;
+  private prefix: string;
+
+  constructor(canvas: HTMLCanvasElement, prefix: string) {
+    this.canvas = canvas;
+    this.prefix = prefix;
   }
 
-  adjustCanvas(canvas);
+  private handleResize() {
+    adjustCanvas(this.canvas);
+    invalidate();
+  }
 
-  initMapPosition();
+  public async bind() {
+    try {
+      chunkRange = await fetch(`${this.prefix}/${dimensionName}/chunk_range.json`).then((resp) => resp.json());
+    } catch (e) {
+      networkError.show();
+      return;
+    }
 
-  requestAnimationFrame(() => internalOnDraw(canvas, prefix));
+    adjustCanvas(this.canvas);
 
-  document.getElementById('zoom-in-button').addEventListener('click', zoomIn);
-  document.getElementById('zoom-out-button').addEventListener('click', zoomOut);
-  document.getElementById('zoom-orig-button').addEventListener('click', zoomOrig);
+    initMapPosition();
 
-  document.getElementById('search-box').addEventListener('click', showSearchList);
-  document.getElementById('search-box').addEventListener('input', searchPoint);
+    requestAnimationFrame(() => internalOnDraw(this.canvas, this.prefix));
 
-  document.getElementById('search-back-button').addEventListener('click', () => {
-    if (searchListShown) {
-      hideSearchList();
-    } else if (detailPanelShown) {
-      if (document.getElementById('detail-panel').classList.contains('compact-detail-panel')) {
-        hideDetailPanel();
-      } else {
-        document.getElementById('detail-panel').classList.add('compact-detail-panel');
-        const origOffsetX = offsetX;
-        const origChunkX = chunkX;
+    document.getElementById('search-box').addEventListener('click', showSearchList);
+    document.getElementById('search-box').addEventListener('input', searchPoint);
 
-        new Animator(150, (ratio: number) => {
-          offsetX = origOffsetX + (210 * ratio) / scale;
-          chunkX = origChunkX;
+    document.getElementById('search-back-button').addEventListener('click', () => {
+      if (searchListShown) {
+        hideSearchList();
+      } else if (detailPanelShown) {
+        if (document.getElementById('detail-panel').classList.contains('compact-detail-panel')) {
+          hideDetailPanel();
+        } else {
+          document.getElementById('detail-panel').classList.add('compact-detail-panel');
+          const origOffsetX = offsetX;
+          const origChunkX = chunkX;
 
-          normalizeChunkOffset();
+          new Animator(150, (ratio: number) => {
+            offsetX = origOffsetX + (210 * ratio) / scale;
+            chunkX = origChunkX;
 
-          invalidate();
-        })
-          .withEndAction(() => {
-            leftOffset = 0;
+            normalizeChunkOffset();
+
+            invalidate();
           })
-          .start();
+            .withEndAction(() => {
+              leftOffset = 0;
+            })
+            .start();
+        }
+      }
+    });
+    document.getElementById('search-button').addEventListener('click', () => {
+      document.getElementById('search-box').focus();
+      showSearchList();
+    });
+    document.getElementById('search-clear-button').addEventListener('click', () => {
+      (<HTMLInputElement>document.getElementById('search-box')).value = '';
+      searchPoint();
+    });
+    document.querySelector('.compact-detail-panel').addEventListener('click', expandDetailPanel);
+
+    loadPoints(this.canvas);
+
+    let dimensionText = '';
+    if (dimensionNumber === 0) dimensionText = 'Overworld';
+    if (dimensionNumber === 1) dimensionText = 'The Nether';
+    if (dimensionNumber === 2) dimensionText = 'The End';
+    document.getElementById('dimension').innerText = dimensionText;
+
+    new NavDrawer().attach(document.getElementById('menu-button'), document.getElementById('menu'), document.getElementById('menu-modal-back'));
+
+    const menuItem = document.getElementById('context-menu').querySelectorAll('div');
+    for (let i = 0; i < menuItem.length; ++i) {
+      if (!menuItem[i].classList.contains('disabled')) {
+        menuItem[i].addEventListener('click', handleContextMenu);
       }
     }
-  });
-  document.getElementById('search-button').addEventListener('click', () => {
-    document.getElementById('search-box').focus();
-    showSearchList();
-  });
-  document.getElementById('search-clear-button').addEventListener('click', () => {
-    (<HTMLInputElement>document.getElementById('search-box')).value = '';
-    searchPoint();
-  });
-  document.querySelector('.compact-detail-panel').addEventListener('click', expandDetailPanel);
 
-  loadPoints(canvas);
-
-  let dimensionText = '';
-  if (dimensionNumber === 0) dimensionText = 'Overworld';
-  if (dimensionNumber === 1) dimensionText = 'The Nether';
-  if (dimensionNumber === 2) dimensionText = 'The End';
-  document.getElementById('dimension').innerText = dimensionText;
-
-  new NavDrawer().attach(document.getElementById('menu-button'), document.getElementById('menu'), document.getElementById('menu-modal-back'));
-
-  const menuItem = document.getElementById('context-menu').querySelectorAll('div');
-  for (let i = 0; i < menuItem.length; ++i) {
-    if (!menuItem[i].classList.contains('disabled')) {
-      menuItem[i].addEventListener('click', handleContextMenu);
-    }
+    window.addEventListener('resize', this.handleResize.bind(this));
   }
 
-  window.addEventListener('resize', () => {
-    adjustCanvas(canvas);
-    invalidate();
-  });
-};
+  public unbind() {
+    window.removeEventListener('resize', this.handleResize.bind(this));
+  }
+
+  zoomIn() {
+    setScale(scale, scale + 0.5);
+  }
+
+  zoomOut() {
+    setScale(scale, scale - 0.5);
+  }
+
+  zoomOrig() {
+    setScale(scale, 1);
+  }
+}
 
 window.addEventListener('popstate', () => {
   const paramX = queryParam('x');
