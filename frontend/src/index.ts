@@ -348,9 +348,6 @@ function changeCursor(coord: PointingDeviceCoord) {
             (MARK_RADIUS * MARK_RADIUS) / (scale * scale));
     const selecting = typeof point !== 'undefined';
 
-    const canvas = document.getElementById('map');
-    canvas.style.cursor = selecting ? 'pointer' : 'move';
-
     if (selecting) {
         showDescriptionCard(point.name, point.x, false, point.y, point.detail,
                             true);
