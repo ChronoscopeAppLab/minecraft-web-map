@@ -507,7 +507,6 @@ function onContextMenuSelected(id: string, menuX: number, menuY: number) {
     } else {
       centerizeCoord(x, z);
     }
-    updateUrl(x, z);
 
     showDetailPanel({
       name: '指定したポイント',
@@ -717,10 +716,6 @@ function hideSearchList() {
     .start();
 }
 
-function updateUrl(x: number, z: number) {
-  history.pushState(null, null, '?dimen=' + dimensionName + '&x=' + x + '&z=' + z);
-}
-
 function goToPoint(id: number) {
   const point = points[id];
   pinWidget.showAt(point.x, point.y);
@@ -730,7 +725,6 @@ function goToPoint(id: number) {
     centerizeCoord(point.x, point.y);
   }
   showDetailPanel(point);
-  updateUrl(point.x, point.y);
 }
 
 function showDetailPanel(point: any) {
@@ -966,16 +960,3 @@ export class Map {
     this.frameRequestId = requestAnimationFrame(this.mainLoop.bind(this));
   }
 }
-
-window.addEventListener('popstate', () => {
-  const paramX = queryParam('x');
-  const paramZ = queryParam('z');
-  if (paramX === null || paramZ === null) {
-    pinWidget.hide();
-  } else {
-    const x = parseInt(paramX);
-    const z = parseInt(paramZ);
-    centerizeCoord(x, z);
-    pinWidget.showAt(x, z);
-  }
-});
