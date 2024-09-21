@@ -45,13 +45,6 @@
     box-sizing: border-box;
     padding: 10px;
 }
-#compact-detail-panel-message {
-    display: hidden;
-    font-size: 10pt;
-}
-#compact-detail-panel-message {
-    display: none;
-}
 
 @media screen and (max-width: 800px) {
     #detail-panel.compact-detail-panel {
@@ -81,9 +74,6 @@
     }
     .compact-detail-panel #detail-panel-detail {
         display: none;
-    }
-    .compact-detail-panel #compact-detail-panel-message{
-        display: inline;
     }
 }
 
