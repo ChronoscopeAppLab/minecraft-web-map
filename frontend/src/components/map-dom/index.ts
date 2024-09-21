@@ -9,6 +9,7 @@ import PinOverlayWidget from './pinOverlayWidget';
 import PointingDeviceCoord from './pointingDeviceCoord';
 import queryParam from './queryParam';
 import {isDirty, invalidate, setInvalidated} from './drawingComponent';
+import {Spot} from '../../api/types';
 
 type RenderingContext = CanvasRenderingContext2D;
 
@@ -43,31 +44,17 @@ class MapChunk {
 }
 
 class Waypoint {
-  type: number;
-  x: number;
-  y: number;
-  name: string;
-  hira: string;
-  color: string;
-  detail: string;
-  image: string;
+  spot: Spot;
 
-  constructor(data: any) {
-    this.type = data['type'];
-    this.x = data['x'];
-    this.y = data['z'];
-    this.name = data['name'];
-    this.hira = data['hira'];
-    this.color = data['color'];
-    this.detail = data['detail'];
-    this.image = data['image'];
+  constructor(spot: Spot) {
+    this.spot = spot;
   }
 
   isInBox(top: number, right: number, bottom: number, left: number) {
     const vpX = left + (right - left) / 2;
     const vpY = top + (bottom - top) / 2;
-    const dX = Math.abs(this.x - vpX);
-    const dY = Math.abs(this.y - vpY);
+    const dX = Math.abs(this.spot.x - vpX);
+    const dY = Math.abs(this.spot.z - vpY);
     const farX = (right - left) / 2 + MARK_RADIUS;
     const farY = (bottom - top) / 2 + MARK_RADIUS;
 
@@ -75,33 +62,33 @@ class Waypoint {
   }
 
   draw(ctxt: RenderingContext, rangeLeft: number, rangeTop: number) {
-    if (this.type == 1) {
+    if (this.spot.type == 1) {
       ctxt.font = 'bold 24px sans-serif';
-      const textWidth = ctxt.measureText(this.name).width;
+      const textWidth = ctxt.measureText(this.spot.name).width;
       ctxt.fillStyle = 'rgba(0, 0, 0, .6)';
-      ctxt.fillText(this.name, (this.x - rangeLeft) * scale - textWidth / 2 + 2, (this.y - rangeTop) * scale + 2);
+      ctxt.fillText(this.spot.name, (this.spot.x - rangeLeft) * scale - textWidth / 2 + 2, (this.spot.z - rangeTop) * scale + 2);
       ctxt.fillStyle = 'rgba(255, 255, 255, .6)';
-      ctxt.fillText(this.name, (this.x - rangeLeft) * scale - textWidth / 2, (this.y - rangeTop) * scale);
+      ctxt.fillText(this.spot.name, (this.spot.x - rangeLeft) * scale - textWidth / 2, (this.spot.z - rangeTop) * scale);
     } else {
       ctxt.fillStyle = 'rgba(0, 0, 0, .3)';
       ctxt.beginPath();
-      ctxt.arc((this.x - rangeLeft) * scale + 1, (this.y - rangeTop) * scale + 1, MARK_RADIUS, 0, 2 * Math.PI, false);
+      ctxt.arc((this.spot.x - rangeLeft) * scale + 1, (this.spot.z - rangeTop) * scale + 1, MARK_RADIUS, 0, 2 * Math.PI, false);
       ctxt.fill();
 
-      ctxt.fillStyle = this.color !== null ? this.color : 'rgb(0, 98, 255)';
+      ctxt.fillStyle = this.spot.color !== null ? this.spot.color : 'rgb(0, 98, 255)';
       ctxt.beginPath();
-      ctxt.arc((this.x - rangeLeft) * scale, (this.y - rangeTop) * scale, MARK_RADIUS, 0, 2 * Math.PI, false);
+      ctxt.arc((this.spot.x - rangeLeft) * scale, (this.spot.z - rangeTop) * scale, MARK_RADIUS, 0, 2 * Math.PI, false);
       ctxt.fill();
 
-      if (this.type === 2 || this.type === 3) {
+      if (this.spot.type === 2 || this.spot.type === 3) {
         let whiteText = false;
-        if (this.color !== null) {
-          whiteText = shouldBeWhiteText(this.color);
+        if (this.spot.color !== null) {
+          whiteText = shouldBeWhiteText(this.spot.color);
         }
 
-        let icon = getIcon(this.type, whiteText);
+        let icon = getIcon(this.spot.type, whiteText);
         if (icon !== null) {
-          ctxt.drawImage(icon, (this.x - rangeLeft) * scale - MARK_RADIUS * 0.7, (this.y - rangeTop) * scale - MARK_RADIUS * 0.7, 14, 14);
+          ctxt.drawImage(icon, (this.spot.x - rangeLeft) * scale - MARK_RADIUS * 0.7, (this.spot.z - rangeTop) * scale - MARK_RADIUS * 0.7, 14, 14);
         }
       }
     }
@@ -276,11 +263,11 @@ function changeCursor(coord: PointingDeviceCoord) {
 
   document.getElementById('coordinate').innerText = 'X=' + x + ' Z=' + y;
 
-  const point = points.find((e: Waypoint) => Math.pow(e.x - x, 2) + Math.pow(e.y - y, 2) <= (MARK_RADIUS * MARK_RADIUS) / (scale * scale));
+  const point = points.find((e: Waypoint) => Math.pow(e.spot.x - x, 2) + Math.pow(e.spot.z - y, 2) <= (MARK_RADIUS * MARK_RADIUS) / (scale * scale));
   const selecting = typeof point !== 'undefined';
 
   if (selecting) {
-    showDescriptionCard(point.name, point.x, false, point.y, point.detail, true);
+    showDescriptionCard(point.spot.name, point.spot.x, false, point.spot.z, point.spot.detail, true);
   } else {
     if (document.getElementById('description-card').classList.contains('auto-hide')) hideDescriptionCard();
   }
@@ -442,26 +429,6 @@ function touchEnd() {
   touchZooming = false;
 }
 
-function click(e: MouseEvent) {
-  if (isMouseMoved) return;
-
-  hideSearchList();
-  hideDetailPanel();
-  hideContextMenu();
-
-  const x = e.clientX + chunkX * CHUNK_WIDTH + offsetX;
-  const y = e.clientY + chunkY * CHUNK_HEIGHT + offsetY;
-
-  const pointId = points.findIndex((e) => Math.pow(e.x - x, 2) + Math.pow(e.y - y, 2) <= MARK_RADIUS * MARK_RADIUS);
-  if (pointId >= 0) {
-    goToPoint(pointId);
-    hideDescriptionCard();
-  } else {
-    pinWidget.hide();
-    hideDescriptionCard();
-  }
-}
-
 let contextMenuX: number;
 let contextMenuY: number;
 
@@ -511,7 +478,7 @@ function onContextMenuSelected(id: string, menuX: number, menuY: number) {
     showDetailPanel({
       name: '指定したポイント',
       x: x,
-      y: z,
+      z: z,
       type: 1
     });
   }
@@ -592,68 +559,6 @@ function initMapPosition() {
   offsetY = 0;
 }
 
-function initializeSearchList() {
-  const template = <HTMLTemplateElement>document.getElementById('search-list-content');
-  const fragment = document.createDocumentFragment();
-  for (let i = 0; i < points.length; i++) {
-    const point = points[i];
-    // リスト上に表示
-    const clone = document.importNode(template.content, true);
-    const listItem = <HTMLElement>clone.querySelector('.content');
-    const name = <HTMLElement>clone.querySelector('.name');
-    const icon = <HTMLImageElement>clone.querySelector('.icon');
-    const detail = <HTMLElement>clone.querySelector('.detail');
-    const iconPath = getIconPath(point.type);
-    name.innerText = point.name;
-    detail.innerText = 'X=' + point.x + ' Z=' + point.y;
-    listItem.addEventListener('click', () => {
-      goToPoint(i);
-      hideSearchList();
-    });
-    if (iconPath) icon.src = iconPath;
-    if (point.color) listItem.style.borderLeftColor = point['color'];
-
-    fragment.appendChild(clone);
-  }
-  document.getElementById('search-list').appendChild(fragment);
-}
-
-async function loadPoints(canvas: HTMLCanvasElement) {
-  const data = await fetch('/api/points?dimen=' + dimensionName).then((resp) => resp.json());
-
-  try {
-    points = data.map((e: any) => new Waypoint(e));
-
-    canvas.addEventListener('mousedown', mouseDown);
-    canvas.addEventListener('mousemove', mouseMove);
-    canvas.addEventListener('mouseup', mouseUp);
-    canvas.addEventListener('mouseleave', mouseUp);
-    canvas.addEventListener('touchstart', touchStart);
-    canvas.addEventListener('touchmove', touchMove);
-    canvas.addEventListener('touchend', touchEnd);
-    canvas.addEventListener('click', click);
-    canvas.addEventListener('wheel', wheel);
-    canvas.addEventListener('contextmenu', contextMenu);
-
-    canvas.getContext('2d').imageSmoothingEnabled = false;
-
-    initializeSearchList();
-
-    const paramX = queryParam('x');
-    const paramZ = queryParam('z');
-    if (paramX !== null && paramZ !== null) {
-      const x = parseInt(paramX);
-      const z = parseInt(paramZ);
-      pinWidget.showAt(x, z);
-      centerizeCoord(x, z);
-    }
-
-    invalidate();
-  } catch (e) {
-    networkError.show();
-  }
-}
-
 function shouldBeWhiteText(hexcolor: string): boolean {
   var r = parseInt(hexcolor.substring(1, 2), 16);
   var g = parseInt(hexcolor.substring(3, 2), 16);
@@ -661,91 +566,23 @@ function shouldBeWhiteText(hexcolor: string): boolean {
   return (r * 299 + g * 587 + b * 114) / 1000 < 128;
 }
 
-let searchListShown: boolean = false;
 let detailPanelShown: boolean = false;
 
-function showSearchList() {
-  if (searchListShown) return;
-  searchListShown = true;
-
-  hideDetailPanel();
-  searchPoint();
-  document.getElementById('search-panel').classList.remove('hidden');
-  document.getElementById('menu-button').classList.add('hidden');
-  document.getElementById('search-back-button').classList.remove('hidden');
-
-  const origOffsetX = offsetX;
-  const origChunkX = chunkX;
-
-  new Animator(150, (ratio: number) => {
-    offsetX = origOffsetX - (210 * ratio) / scale;
-    chunkX = origChunkX;
-
-    normalizeChunkOffset();
-
-    invalidate();
-  })
-    .withEndAction(() => {
-      leftOffset = 210;
-    })
-    .start();
-}
-
-function hideSearchList() {
-  if (!searchListShown) return;
-  searchListShown = false;
-
-  document.getElementById('search-panel').classList.add('hidden');
-  document.getElementById('menu-button').classList.remove('hidden');
-  document.getElementById('search-back-button').classList.add('hidden');
-
-  const origOffsetX = offsetX;
-  const origChunkX = chunkX;
-
-  new Animator(150, (ratio: number) => {
-    offsetX = origOffsetX + (210 * ratio) / scale;
-    chunkX = origChunkX;
-
-    normalizeChunkOffset();
-
-    invalidate();
-  })
-    .withEndAction(() => {
-      leftOffset = 0;
-    })
-    .start();
-}
-
-function goToPoint(id: number) {
-  const point = points[id];
-  pinWidget.showAt(point.x, point.y);
-  if (document.body.clientWidth >= 800) {
-    centerizeCoord(point.x - 210, point.y);
-  } else {
-    centerizeCoord(point.x, point.y);
-  }
-  showDetailPanel(point);
-}
-
-function showDetailPanel(point: any) {
+function showDetailPanel(spot: Partial<Spot> & Pick<Spot, 'name' | 'x' | 'z' | 'type'>) {
   detailPanelShown = true;
-  document.getElementById('search-panel').classList.add('hidden');
-  document.getElementById('menu-button').classList.add('hidden');
-  document.getElementById('search-back-button').classList.remove('hidden');
-
-  document.getElementById('detail-panel-title').innerText = point['name'];
-  document.getElementById('detail-panel-subtitle').innerText = 'X=' + point['x'] + ', Z=' + point['y'];
-  document.getElementById('detail-panel-detail').innerText = point['detail'] ?? '';
-  if (point['image']) {
+  document.getElementById('detail-panel-title').innerText = spot['name'];
+  document.getElementById('detail-panel-subtitle').innerText = 'X=' + spot['x'] + ', Z=' + spot['z'];
+  document.getElementById('detail-panel-detail').innerText = spot['detail'] ?? '';
+  if (spot.image) {
     document.getElementById('detail-panel').classList.remove('no-image');
-    document.getElementById('detail-panel-image').style.backgroundImage = 'url("../images/points/' + point['image'] + '")';
+    document.getElementById('detail-panel-image').style.backgroundImage = 'url("../images/points/' + spot['image'] + '")';
   } else {
     document.getElementById('detail-panel').classList.add('no-image');
   }
   const detailOverview = document.getElementById('detail-panel-overview');
-  if (point['color']) {
-    detailOverview.style.backgroundColor = point['color'];
-    detailOverview.style.color = shouldBeWhiteText(point['color']) ? '#fff' : '#000';
+  if (spot.color) {
+    detailOverview.style.backgroundColor = spot['color'];
+    detailOverview.style.color = shouldBeWhiteText(spot['color']) ? '#fff' : '#000';
   } else {
     detailOverview.style.backgroundColor = 'rgb(0, 98, 255)';
     detailOverview.style.color = '#fff';
@@ -757,8 +594,6 @@ function hideDetailPanel() {
   if (!detailPanelShown) return true;
   detailPanelShown = false;
   document.getElementById('detail-panel').classList.add('hidden');
-  document.getElementById('menu-button').classList.remove('hidden');
-  document.getElementById('search-back-button').classList.add('hidden');
 
   document.getElementById('detail-panel').classList.add('compact-detail-panel');
 }
@@ -782,25 +617,6 @@ function expandDetailPanel() {
     .start();
 }
 
-function searchPoint() {
-  const searchText = (<HTMLInputElement>document.getElementById('search-box')).value;
-  const searchList = document.getElementById('search-list');
-  if (searchText) {
-    document.getElementById('search-button').classList.add('hidden');
-    document.getElementById('search-clear-button').classList.remove('hidden');
-  } else {
-    document.getElementById('search-button').classList.remove('hidden');
-    document.getElementById('search-clear-button').classList.add('hidden');
-  }
-  for (let i = 0; i < points.length; i++) {
-    if (points[i]['name'].indexOf(searchText) !== -1 || points[i]['hira'].indexOf(searchText) !== -1) {
-      searchList.children[i].classList.remove('hidden');
-    } else {
-      searchList.children[i].classList.add('hidden');
-    }
-  }
-}
-
 function handleContextMenu(e: any) {
   hideContextMenu();
   onContextMenuSelected(e.target.id, contextMenuX, contextMenuY);
@@ -809,19 +625,15 @@ function handleContextMenu(e: any) {
 export class Map {
   private canvas: HTMLCanvasElement;
   private prefix: string;
+  private spots: Spot[];
   private frameRequestId: number | null;
-
-  constructor(canvas: HTMLCanvasElement, prefix: string) {
-    this.canvas = canvas;
-    this.prefix = prefix;
-  }
 
   private handleResize() {
     adjustCanvas(this.canvas);
     invalidate();
   }
 
-  public async bind() {
+  private async init() {
     try {
       chunkRange = await fetch(`${this.prefix}/${dimensionName}/chunk_range.json`).then((resp) => resp.json());
     } catch (e) {
@@ -835,46 +647,10 @@ export class Map {
 
     this.frameRequestId = requestAnimationFrame(this.mainLoop.bind(this));
 
-    document.getElementById('search-box').addEventListener('click', showSearchList);
-    document.getElementById('search-box').addEventListener('input', searchPoint);
-
-    document.getElementById('search-back-button').addEventListener('click', () => {
-      if (searchListShown) {
-        hideSearchList();
-      } else if (detailPanelShown) {
-        if (document.getElementById('detail-panel').classList.contains('compact-detail-panel')) {
-          hideDetailPanel();
-        } else {
-          document.getElementById('detail-panel').classList.add('compact-detail-panel');
-          const origOffsetX = offsetX;
-          const origChunkX = chunkX;
-
-          new Animator(150, (ratio: number) => {
-            offsetX = origOffsetX + (210 * ratio) / scale;
-            chunkX = origChunkX;
-
-            normalizeChunkOffset();
-
-            invalidate();
-          })
-            .withEndAction(() => {
-              leftOffset = 0;
-            })
-            .start();
-        }
-      }
-    });
-    document.getElementById('search-button').addEventListener('click', () => {
-      document.getElementById('search-box').focus();
-      showSearchList();
-    });
-    document.getElementById('search-clear-button').addEventListener('click', () => {
-      (<HTMLInputElement>document.getElementById('search-box')).value = '';
-      searchPoint();
-    });
     document.querySelector('.compact-detail-panel').addEventListener('click', expandDetailPanel);
 
-    loadPoints(this.canvas);
+    this.setupListners(this.canvas);
+    points = this.spots.map((spot: Spot) => new Waypoint(spot));
 
     let dimensionText = '';
     if (dimensionNumber === 0) dimensionText = 'Overworld';
@@ -892,6 +668,14 @@ export class Map {
     }
 
     window.addEventListener('resize', this.handleResize.bind(this));
+  }
+
+  public async bind(canvas: HTMLCanvasElement, prefix: string, spots: Spot[]) {
+    this.canvas = canvas;
+    this.prefix = prefix;
+    this.spots = spots;
+
+    this.init();
   }
 
   public unbind() {
@@ -958,5 +742,54 @@ export class Map {
     pinWidget.draw(globalDrawingContext);
 
     this.frameRequestId = requestAnimationFrame(this.mainLoop.bind(this));
+  }
+
+  focusPoint(id: number) {
+    const point = points[id];
+    pinWidget.showAt(point.spot.x, point.spot.z);
+
+    if (document.body.clientWidth >= 800) {
+      centerizeCoord(point.spot.x - 210, point.spot.z);
+    } else {
+      centerizeCoord(point.spot.x, point.spot.z);
+    }
+
+    showDetailPanel(point.spot);
+  }
+
+  private click(e: MouseEvent) {
+    if (isMouseMoved) return;
+
+    hideDetailPanel();
+    hideContextMenu();
+
+    const x = e.clientX + chunkX * CHUNK_WIDTH + offsetX;
+    const y = e.clientY + chunkY * CHUNK_HEIGHT + offsetY;
+
+    const pointId = points.findIndex((e) => Math.pow(e.spot.x - x, 2) + Math.pow(e.spot.z - y, 2) <= MARK_RADIUS * MARK_RADIUS);
+    if (pointId >= 0) {
+      this.focusPoint(pointId);
+      hideDescriptionCard();
+    } else {
+      pinWidget.hide();
+      hideDescriptionCard();
+    }
+  }
+
+  private setupListners(canvas: HTMLCanvasElement) {
+    canvas.addEventListener('mousedown', mouseDown);
+    canvas.addEventListener('mousemove', mouseMove);
+    canvas.addEventListener('mouseup', mouseUp);
+    canvas.addEventListener('mouseleave', mouseUp);
+    canvas.addEventListener('touchstart', touchStart);
+    canvas.addEventListener('touchmove', touchMove);
+    canvas.addEventListener('touchend', touchEnd);
+    canvas.addEventListener('click', this.click.bind(this));
+    canvas.addEventListener('wheel', wheel);
+    canvas.addEventListener('contextmenu', contextMenu);
+
+    canvas.getContext('2d').imageSmoothingEnabled = false;
+
+    invalidate();
   }
 }

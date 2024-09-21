@@ -16,7 +16,7 @@ const Map = () => {
     return <div>Loading...</div>;
   }
 
-  return <InfiniteMap initialState={initialState} />;
+  return <InfiniteMap prefix={initialState.prefix} />;
 };
 
 export default Map;
