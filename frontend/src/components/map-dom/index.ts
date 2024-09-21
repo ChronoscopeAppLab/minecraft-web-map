@@ -257,25 +257,6 @@ function adjustCanvas(canvas: HTMLCanvasElement) {
   canvasRect = canvas.getBoundingClientRect();
 }
 
-function showDescriptionCard(name: string, x: number | boolean, y: number | boolean, z: number | boolean, detail: string, autoHide = false) {
-  const descriptionCard = document.getElementById('description-card');
-  let coordinateText = '';
-  if (x !== false) coordinateText += 'X=' + x + ' ';
-  if (y !== false) coordinateText += 'Y=' + y + ' ';
-  if (z !== false) coordinateText += 'Z=' + z + ' ';
-  document.getElementById('description-place-name').innerText = name;
-  document.getElementById('description-coordinate').innerText = coordinateText;
-  document.getElementById('description-address').innerText = detail;
-  if (autoHide) descriptionCard.classList.add('auto-hide');
-  else descriptionCard.classList.remove('auto-hide');
-  descriptionCard.classList.remove('hidden');
-}
-
-function hideDescriptionCard() {
-  document.getElementById('description-card').classList.remove('auto-hide');
-  document.getElementById('description-card').classList.add('hidden');
-}
-
 let isMouseDown: boolean;
 let isMouseMoved: boolean;
 let prevX: number;
@@ -504,6 +485,7 @@ export class Map {
 
   private onScaleChangeCallback: (scale: number) => void | null;
   private onCursorMoveCallback: (pos: {x: number; z: number}) => void | null;
+  private descriptionCallback: (spot: Spot | null) => void;
 
   private handleResize() {
     adjustCanvas(this.canvas);
@@ -660,10 +642,10 @@ export class Map {
     const pointId = points.findIndex((e) => Math.pow(e.spot.x - x, 2) + Math.pow(e.spot.z - y, 2) <= MARK_RADIUS * MARK_RADIUS);
     if (pointId >= 0) {
       this.focusPoint(pointId);
-      hideDescriptionCard();
+      this.descriptionCallback?.(null);
     } else {
       pinWidget.hide();
-      hideDescriptionCard();
+      this.descriptionCallback?.(null);
     }
   }
 
@@ -698,9 +680,9 @@ export class Map {
     const selecting = typeof point !== 'undefined';
 
     if (selecting) {
-      showDescriptionCard(point.spot.name, point.spot.x, false, point.spot.z, point.spot.detail, true);
-    } else if (document.getElementById('description-card').classList.contains('auto-hide')) {
-      hideDescriptionCard();
+      this.descriptionCallback?.(point.spot);
+    } else {
+      this.descriptionCallback?.(null);
     }
 
     this.onCursorMoveCallback({x, z: y});
@@ -801,5 +783,9 @@ export class Map {
 
   setOnCursorMoveCallback(callback: (pos: {x: number; z: number}) => void) {
     this.onCursorMoveCallback = callback;
+  }
+
+  setDescriptionCallback(callback: (description: Spot | null) => void) {
+    this.descriptionCallback = callback;
   }
 }
