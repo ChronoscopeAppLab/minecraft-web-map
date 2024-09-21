@@ -284,9 +284,7 @@ let canvasRect: DOMRect;
 
 let endCond: any = {};
 
-function adjustCanvas() {
-  const canvas = <HTMLCanvasElement>document.getElementById('map');
-
+function adjustCanvas(canvas: HTMLCanvasElement) {
   width = canvas.clientWidth;
   height = canvas.clientHeight;
 
@@ -680,13 +678,12 @@ function initializeSearchList() {
   document.getElementById('search-list').appendChild(fragment);
 }
 
-async function loadPoints() {
+async function loadPoints(canvas: HTMLCanvasElement) {
   const data = await fetch('/api/points?dimen=' + dimensionName).then((resp) => resp.json());
 
   try {
     points = data.map((e: any) => new Waypoint(e));
 
-    const canvas = <HTMLCanvasElement>document.getElementById('map');
     canvas.addEventListener('mousedown', mouseDown);
     canvas.addEventListener('mousemove', mouseMove);
     canvas.addEventListener('mouseup', mouseUp);
@@ -874,21 +871,19 @@ function handleContextMenu(e: any) {
   onContextMenuSelected(e.target.id, contextMenuX, contextMenuY);
 }
 
-export const initializeMap = async (canvas: HTMLCanvasElement) => {
-  const initialState = await fetch('/api/initial_state.json').then((resp) => resp.json());
-
+export const initializeMap = async (canvas: HTMLCanvasElement, prefix: string) => {
   try {
-    chunkRange = await fetch(`${initialState.prefix}/${dimensionName}/chunk_range.json`).then((resp) => resp.json());
+    chunkRange = await fetch(`${prefix}/${dimensionName}/chunk_range.json`).then((resp) => resp.json());
   } catch (e) {
     networkError.show();
     return;
   }
 
-  adjustCanvas();
+  adjustCanvas(canvas);
 
   initMapPosition();
 
-  requestAnimationFrame(() => internalOnDraw(canvas, initialState.prefix));
+  requestAnimationFrame(() => internalOnDraw(canvas, prefix));
 
   document.getElementById('zoom-in-button').addEventListener('click', zoomIn);
   document.getElementById('zoom-out-button').addEventListener('click', zoomOut);
@@ -933,7 +928,7 @@ export const initializeMap = async (canvas: HTMLCanvasElement) => {
   });
   document.querySelector('.compact-detail-panel').addEventListener('click', expandDetailPanel);
 
-  loadPoints();
+  loadPoints(canvas);
 
   let dimensionText = '';
   if (dimensionNumber === 0) dimensionText = 'Overworld';
@@ -949,12 +944,12 @@ export const initializeMap = async (canvas: HTMLCanvasElement) => {
       menuItem[i].addEventListener('click', handleContextMenu);
     }
   }
-};
 
-window.addEventListener('resize', () => {
-  adjustCanvas();
-  invalidate();
-});
+  window.addEventListener('resize', () => {
+    adjustCanvas(canvas);
+    invalidate();
+  });
+};
 
 window.addEventListener('popstate', () => {
   const paramX = queryParam('x');

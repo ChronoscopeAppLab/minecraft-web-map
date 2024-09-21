@@ -1,16 +1,22 @@
 import {useRef, useEffect} from 'react';
-import { initializeMap } from './map-dom';
+import {initializeMap} from './map-dom';
 
-type Props = {};
+type InitialState = {
+  prefix: string;
+};
 
-const InfiniteMap = ({}: Props) => {
+type Props = {
+  initialState: InitialState;
+};
+
+const InfiniteMap = ({initialState}: Props) => {
   const mapRef = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     if (!mapRef.current) {
       return;
     }
 
-    initializeMap(mapRef.current);
+    initializeMap(mapRef.current, initialState.prefix);
   }, []);
 
   return <canvas ref={mapRef} id="map" />;
