@@ -5,6 +5,7 @@
         "module": "ESNext",
         "target": "ES2023",
         "moduleResolution": "Bundler",
-        "allowJs": true
+        "allowJs": true,
+        "jsx": "react-jsx"
     }
 }

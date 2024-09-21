@@ -7,7 +7,8 @@
         "test": "echo \"Error: no test specified\" && exit 1",
         "dev": "webpack --mode development",
         "prod": "webpack --mode production",
-        "watch": "webpack --mode development --watch"
+        "watch": "webpack --mode development --watch",
+        "fmt": "prettier --write 'src/**/*.{ts,tsx,json}' '*.{ts,js}'"
     },
     "repository": {
         "type": "git",
@@ -19,10 +20,17 @@
         "url": "https://github.com/ChronoscopeAppLab/minecraft-web-map/issues"
     },
     "homepage": "https://github.com/ChronoscopeAppLab/minecraft-web-map#readme",
+    "dependencies": {
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1"
+    },
     "devDependencies": {
+        "@types/react": "^18.3.8",
+        "@types/react-dom": "^18.3.0",
         "copy-webpack-plugin": "^12.0.2",
         "css-loader": "^7.1.2",
         "html-webpack-plugin": "^5.6.0",
+        "prettier": "^3.3.3",
         "sass": "^1.78.0",
         "sass-loader": "^16.0.1",
         "style-loader": "^4.0.0",
