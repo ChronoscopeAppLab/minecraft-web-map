@@ -257,22 +257,6 @@ function adjustCanvas(canvas: HTMLCanvasElement) {
   canvasRect = canvas.getBoundingClientRect();
 }
 
-function changeCursor(coord: PointingDeviceCoord) {
-  const x = Math.floor(coord.x / scale + chunkX * CHUNK_WIDTH + offsetX);
-  const y = Math.floor(coord.y / scale + chunkY * CHUNK_HEIGHT + offsetY);
-
-  document.getElementById('coordinate').innerText = 'X=' + x + ' Z=' + y;
-
-  const point = points.find((e: Waypoint) => Math.pow(e.spot.x - x, 2) + Math.pow(e.spot.z - y, 2) <= (MARK_RADIUS * MARK_RADIUS) / (scale * scale));
-  const selecting = typeof point !== 'undefined';
-
-  if (selecting) {
-    showDescriptionCard(point.spot.name, point.spot.x, false, point.spot.z, point.spot.detail, true);
-  } else {
-    if (document.getElementById('description-card').classList.contains('auto-hide')) hideDescriptionCard();
-  }
-}
-
 function showDescriptionCard(name: string, x: number | boolean, y: number | boolean, z: number | boolean, detail: string, autoHide = false) {
   const descriptionCard = document.getElementById('description-card');
   let coordinateText = '';
@@ -350,83 +334,6 @@ function normalizeChunkOffset() {
       break;
     }
   }
-}
-
-function dragMap(e: PointingDeviceCoord) {
-  isMouseMoved = true;
-  changeCursor(e);
-
-  if (!isMouseDown) return;
-
-  const currentX = e.x - canvasRect.left;
-  const currentY = e.y - canvasRect.top;
-
-  if (!touchZooming) {
-    const moveX = (prevX - currentX) / scale;
-    const moveY = (prevY - currentY) / scale;
-
-    offsetX += moveX;
-    offsetY += moveY;
-  }
-
-  normalizeChunkOffset();
-
-  invalidate();
-
-  prevX = currentX;
-  prevY = currentY;
-}
-
-function mouseMove(e: MouseEvent) {
-  dragMap(PointingDeviceCoord.wrapMouseEvent(e));
-}
-
-function mouseUp() {
-  if (!isMouseDown) return;
-
-  isMouseDown = false;
-}
-
-function touchStart(e: TouchEvent) {
-  dragStart(PointingDeviceCoord.wrapTouchEvent(e));
-}
-
-function touchMove(e: TouchEvent) {
-  e.preventDefault();
-  if (e.changedTouches.length == 1) {
-    dragMap(PointingDeviceCoord.wrapTouchEvent(e));
-  } else {
-    const touches = e.changedTouches;
-    const x1 = touches[0].clientX - canvasRect.left,
-      y1 = touches[0].clientY - canvasRect.top,
-      x2 = touches[1].clientX - canvasRect.left,
-      y2 = touches[1].clientY - canvasRect.top,
-      distance = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2)),
-      oScale = scale;
-
-    if (!oldDistance) {
-      touchZoomCx = (x1 + x2) / 2;
-      touchZoomCy = (y1 + y2) / 2;
-      touchZooming = true;
-      oldDistance = distance;
-      origScale = scale;
-    } else {
-      scale = (origScale * distance) / oldDistance;
-      if (scale < MIN_SCALE) scale = MIN_SCALE;
-      else if (MAX_SCALE < scale) scale = MAX_SCALE;
-      keepCenter(oScale, scale, touchZoomCx, touchZoomCy);
-
-      document.getElementById('scale').innerText = 'Scale=' + Math.floor(scale * 10) / 10;
-
-      invalidate();
-    }
-  }
-}
-
-function touchEnd() {
-  mouseUp();
-  oldDistance = 0;
-  touchZooming = false;
 }
 
 let contextMenuX: number;
@@ -513,39 +420,6 @@ function keepCenter(origScale: number, newScale: number, cx: number, cy: number)
   normalizeChunkOffset();
 }
 
-function setScale(oscale: number, nscale: number) {
-  if (nscale < MIN_SCALE) nscale = MIN_SCALE;
-  else if (MAX_SCALE < nscale) nscale = MAX_SCALE;
-
-  new Animator(SCALE_ANIMATION_DURATION, (ratio: number) => {
-    const ns = oscale + (nscale - oscale) * ratio;
-    keepCenter(scale, ns, width / 2, height / 2);
-    scale = ns;
-
-    invalidate();
-  })
-    .setAnimationInterpolator(AnimationInterpolator.accelerateDeaccelerateInterpolator)
-    .start();
-
-  document.getElementById('scale').innerText = 'Scale=' + Math.floor(nscale * 10) / 10;
-}
-
-function wheel(e: WheelEvent) {
-  const origScale = scale;
-  scale -= e.deltaY / 200;
-  prevX = e.clientX - canvasRect.left;
-  prevY = e.clientY - canvasRect.top;
-
-  if (scale < MIN_SCALE) scale = MIN_SCALE;
-  else if (MAX_SCALE < scale) scale = MAX_SCALE;
-
-  keepCenter(origScale, scale, prevX, prevY);
-
-  document.getElementById('scale').innerText = 'Scale=' + Math.floor(scale * 10) / 10;
-
-  invalidate();
-}
-
 function initMapPosition() {
   if (dimensionNumber === 0) {
     chunkX = -3;
@@ -628,6 +502,9 @@ export class Map {
   private spots: Spot[];
   private frameRequestId: number | null;
 
+  private onScaleChangeCallback: (scale: number) => void | null;
+  private onCursorMoveCallback: (pos: {x: number; z: number}) => void | null;
+
   private handleResize() {
     adjustCanvas(this.canvas);
     invalidate();
@@ -651,12 +528,6 @@ export class Map {
 
     this.setupListners(this.canvas);
     points = this.spots.map((spot: Spot) => new Waypoint(spot));
-
-    let dimensionText = '';
-    if (dimensionNumber === 0) dimensionText = 'Overworld';
-    if (dimensionNumber === 1) dimensionText = 'The Nether';
-    if (dimensionNumber === 2) dimensionText = 'The End';
-    document.getElementById('dimension').innerText = dimensionText;
 
     new NavDrawer().attach(document.getElementById('menu-button'), document.getElementById('menu'), document.getElementById('menu-modal-back'));
 
@@ -685,16 +556,36 @@ export class Map {
     }
   }
 
+  private setScale(oscale: number, nscale: number) {
+    if (nscale < MIN_SCALE) {
+      nscale = MIN_SCALE;
+    } else if (MAX_SCALE < nscale) {
+      nscale = MAX_SCALE;
+    }
+
+    new Animator(SCALE_ANIMATION_DURATION, (ratio: number) => {
+      const ns = oscale + (nscale - oscale) * ratio;
+      keepCenter(scale, ns, width / 2, height / 2);
+      scale = ns;
+
+      invalidate();
+    })
+      .setAnimationInterpolator(AnimationInterpolator.accelerateDeaccelerateInterpolator)
+      .start();
+
+    this.onScaleChangeCallback?.(nscale);
+  }
+
   zoomIn() {
-    setScale(scale, scale + 0.5);
+    this.setScale(scale, scale + 0.5);
   }
 
   zoomOut() {
-    setScale(scale, scale - 0.5);
+    this.setScale(scale, scale - 0.5);
   }
 
   zoomOrig() {
-    setScale(scale, 1);
+    this.setScale(scale, 1);
   }
 
   private mainLoop() {
@@ -776,20 +667,139 @@ export class Map {
     }
   }
 
+  private wheel(e: WheelEvent) {
+    const origScale = scale;
+    scale -= e.deltaY / 200;
+    prevX = e.clientX - canvasRect.left;
+    prevY = e.clientY - canvasRect.top;
+
+    if (scale < MIN_SCALE) {
+      scale = MIN_SCALE;
+    } else if (MAX_SCALE < scale) {
+      scale = MAX_SCALE;
+    }
+
+    keepCenter(origScale, scale, prevX, prevY);
+
+    invalidate();
+
+    this.onScaleChangeCallback?.(scale);
+  }
+
+  private dragMap(e: PointingDeviceCoord) {
+    isMouseMoved = true;
+
+    const x = Math.floor(e.x / scale + chunkX * CHUNK_WIDTH + offsetX);
+    const y = Math.floor(e.y / scale + chunkY * CHUNK_HEIGHT + offsetY);
+
+    const point = points.find(
+      (e: Waypoint) => Math.pow(e.spot.x - x, 2) + Math.pow(e.spot.z - y, 2) <= (MARK_RADIUS * MARK_RADIUS) / (scale * scale)
+    );
+    const selecting = typeof point !== 'undefined';
+
+    if (selecting) {
+      showDescriptionCard(point.spot.name, point.spot.x, false, point.spot.z, point.spot.detail, true);
+    } else if (document.getElementById('description-card').classList.contains('auto-hide')) {
+      hideDescriptionCard();
+    }
+
+    this.onCursorMoveCallback({x, z: y});
+
+    if (!isMouseDown) return;
+
+    const currentX = e.x - canvasRect.left;
+    const currentY = e.y - canvasRect.top;
+
+    if (!touchZooming) {
+      const moveX = (prevX - currentX) / scale;
+      const moveY = (prevY - currentY) / scale;
+
+      offsetX += moveX;
+      offsetY += moveY;
+    }
+
+    normalizeChunkOffset();
+
+    invalidate();
+
+    prevX = currentX;
+    prevY = currentY;
+  }
+
+  private mouseMove(e: MouseEvent) {
+    this.dragMap(PointingDeviceCoord.wrapMouseEvent(e));
+  }
+
+  private mouseUp() {
+    if (!isMouseDown) return;
+
+    isMouseDown = false;
+  }
+
+  private touchStart(e: TouchEvent) {
+    dragStart(PointingDeviceCoord.wrapTouchEvent(e));
+  }
+
+  private touchMove(e: TouchEvent) {
+    e.preventDefault();
+    if (e.changedTouches.length == 1) {
+      this.dragMap(PointingDeviceCoord.wrapTouchEvent(e));
+    } else {
+      const touches = e.changedTouches;
+      const x1 = touches[0].clientX - canvasRect.left,
+        y1 = touches[0].clientY - canvasRect.top,
+        x2 = touches[1].clientX - canvasRect.left,
+        y2 = touches[1].clientY - canvasRect.top,
+        distance = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2)),
+        oScale = scale;
+
+      if (!oldDistance) {
+        touchZoomCx = (x1 + x2) / 2;
+        touchZoomCy = (y1 + y2) / 2;
+        touchZooming = true;
+        oldDistance = distance;
+        origScale = scale;
+      } else {
+        scale = (origScale * distance) / oldDistance;
+        if (scale < MIN_SCALE) scale = MIN_SCALE;
+        else if (MAX_SCALE < scale) scale = MAX_SCALE;
+        keepCenter(oScale, scale, touchZoomCx, touchZoomCy);
+
+        this.onScaleChangeCallback?.(scale);
+
+        invalidate();
+      }
+    }
+  }
+
+  private touchEnd() {
+    this.mouseUp();
+    oldDistance = 0;
+    touchZooming = false;
+  }
+
   private setupListners(canvas: HTMLCanvasElement) {
     canvas.addEventListener('mousedown', mouseDown);
-    canvas.addEventListener('mousemove', mouseMove);
-    canvas.addEventListener('mouseup', mouseUp);
-    canvas.addEventListener('mouseleave', mouseUp);
-    canvas.addEventListener('touchstart', touchStart);
-    canvas.addEventListener('touchmove', touchMove);
-    canvas.addEventListener('touchend', touchEnd);
+    canvas.addEventListener('mousemove', this.mouseMove.bind(this));
+    canvas.addEventListener('mouseup', this.mouseUp.bind(this));
+    canvas.addEventListener('mouseleave', this.mouseUp.bind(this));
+    canvas.addEventListener('touchstart', this.touchStart.bind(this));
+    canvas.addEventListener('touchmove', this.touchMove.bind(this));
+    canvas.addEventListener('touchend', this.touchEnd.bind(this));
     canvas.addEventListener('click', this.click.bind(this));
-    canvas.addEventListener('wheel', wheel);
+    canvas.addEventListener('wheel', this.wheel.bind(this));
     canvas.addEventListener('contextmenu', contextMenu);
 
     canvas.getContext('2d').imageSmoothingEnabled = false;
 
     invalidate();
+  }
+
+  setOnScaleChangeCallback(callback: (scale: number) => void) {
+    this.onScaleChangeCallback = callback;
+  }
+
+  setOnCursorMoveCallback(callback: (pos: {x: number; z: number}) => void) {
+    this.onCursorMoveCallback = callback;
   }
 }
