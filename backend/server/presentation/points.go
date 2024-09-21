@@ -13,14 +13,10 @@ type Waypoint struct {
 	Z      int    `json:"z"`
 }
 
-func ConvertWaypoints(data *[]mapdata.Waypoint, zoomLevel int) []Waypoint {
+func ConvertWaypoints(data *[]mapdata.Waypoint) []Waypoint {
 	var result []Waypoint
 
 	for i, src := range *data {
-		if zoomLevel < src.ZoomLevel {
-			continue
-		}
-
 		result = append(result, Waypoint{
 			ID:     i,
 			Name:   src.Name,
