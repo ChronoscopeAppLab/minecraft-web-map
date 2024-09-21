@@ -3,6 +3,7 @@ package presentation
 import "github.com/ChronoscopeAppLab/minecraft-web-map/backend/mapdata"
 
 type Waypoint struct {
+	ID     int    `json:"id"`
 	Name   string `json:"name"`
 	Yomi   string `json:"hira"`
 	Detail string `json:"detail"`
@@ -15,19 +16,20 @@ type Waypoint struct {
 func ConvertWaypoints(data *[]mapdata.Waypoint, zoomLevel int) []Waypoint {
 	var result []Waypoint
 
-	for _, src := range *data {
+	for i, src := range *data {
 		if zoomLevel < src.ZoomLevel {
 			continue
 		}
 
 		result = append(result, Waypoint{
-			src.Name,
-			src.Yomi,
-			src.Detail,
-			src.Type,
-			src.Color,
-			src.X,
-			src.Z,
+			ID:     i,
+			Name:   src.Name,
+			Yomi:   src.Yomi,
+			Detail: src.Detail,
+			Type:   src.Type,
+			Color:  src.Color,
+			X:      src.X,
+			Z:      src.Z,
 		})
 	}
 

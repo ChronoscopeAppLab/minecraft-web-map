@@ -1,35 +1,45 @@
 import {useEffect, useRef, useState} from 'react';
-import {Map} from './map-dom';
 
-type InitialState = {
+import {Map} from './map-dom';
+import SearchBox from './search-box';
+import {Spot} from '../api/types';
+
+type Props = {
   prefix: string;
 };
 
-type Props = {
-  initialState: InitialState;
-};
-
-const InfiniteMap = ({initialState}: Props) => {
+const InfiniteMap = ({prefix}: Props) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [map, setMap] = useState<Map | null>(null);
+  const [spots, setSpots] = useState<Spot[]>([]);
 
   useEffect(() => {
     if (!canvasRef.current) {
       return;
     }
 
-    const map = new Map(canvasRef.current, initialState.prefix);
-    map.bind();
+    const map = new Map();
 
-    setMap(map);
+    (async () => {
+      const spots = await fetch('/api/points?dimen=overworld').then((resp) => resp.json());
+      setSpots(spots);
+
+      map.bind(canvasRef.current, prefix, spots);
+      setMap(map);
+    })();
 
     return () => {
       map.unbind();
     };
   }, []);
 
+  const handleClickPoint = (pointId: number) => {
+    map?.focusPoint(pointId);
+  };
+
   return (
     <>
+      <SearchBox spots={spots} onClickPoint={handleClickPoint} />
       <canvas ref={canvasRef} id="map" />
       <div id="zoom-buttons">
         <img src="/images/zoom_in.png" id="zoom-in-button" alt="+" onClick={() => map.zoomIn()} />
