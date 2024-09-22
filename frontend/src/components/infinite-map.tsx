@@ -9,9 +9,10 @@ import ContextMenu from './context-menu';
 
 type Props = {
   prefix: string;
+  dimension: 'overworld' | 'nether' | 'end';
 };
 
-const InfiniteMap = ({prefix}: Props) => {
+const InfiniteMap = ({prefix, dimension}: Props) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [map, setMap] = useState<Map | null>(null);
   const [spots, setSpots] = useState<Spot[]>([]);
@@ -32,12 +33,13 @@ const InfiniteMap = ({prefix}: Props) => {
     const map = new Map();
 
     (async () => {
-      const spots = await fetch('/api/points?dimen=overworld').then((resp) => resp.json());
+      const spots = await fetch(`/api/points?dimen=${dimension}`).then((resp) => resp.json());
       setSpots(spots);
 
       map.bind({
         perf: location.search.includes('perf'),
         canvas: canvasRef.current,
+        dimension,
         prefix,
         spots,
         callback: {

@@ -16,7 +16,15 @@ const Map = () => {
     return <div>Loading...</div>;
   }
 
-  return <InfiniteMap prefix={initialState.prefix} />;
+  const params = new URLSearchParams(window.location.search);
+  const dimension = params.get('dimen') ?? 'overworld';
+
+  return (
+    <InfiniteMap
+      prefix={initialState.prefix}
+      dimension={(['overworld', 'nether', 'end'].includes(dimension) ? dimension : 'overworld') as 'overworld' | 'nether' | 'end'}
+    />
+  );
 };
 
 export default Map;
