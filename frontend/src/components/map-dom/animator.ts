@@ -1,4 +1,4 @@
-import AnimationInterpolator from './animationInterpolator';
+import AnimationInterpolator from './animation-interpolator';
 
 export default class Animator {
   duration: number;

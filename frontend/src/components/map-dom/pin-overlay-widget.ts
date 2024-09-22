@@ -1,9 +1,9 @@
-import AnimationInterpolator from './animationInterpolator';
+import AnimationInterpolator from './animation-interpolator';
 import Animator from './animator';
 import * as constants from './constants';
-import DrawingComponent from './drawingComponent';
-import {invalidate} from './drawingComponent';
-import DrawingContext from './drawingContext';
+import DrawingComponent from './drawing-component';
+import {invalidate} from './drawing-component';
+import DrawingContext from './drawing-context';
 
 export default class PinOverlayWidget extends DrawingComponent {
   private x: number;
