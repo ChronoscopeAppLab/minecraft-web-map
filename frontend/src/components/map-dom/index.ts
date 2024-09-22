@@ -8,6 +8,7 @@ import PinOverlayWidget from './pin-overlay-widget';
 import PointingDeviceCoord from './pointing-device-coord';
 import {isDirty, invalidate, setInvalidated} from './drawing-component';
 import {Spot} from '../../api/types';
+import Stats from 'stats.js';
 
 let globalDrawingContext: DrawingContext = null;
 
@@ -211,16 +212,6 @@ function retriveChunks(prefix: string) {
       maps.push(new MapChunk(prefix, e[0], e[1]));
     }
   });
-}
-
-function runCacheGc() {
-  for (;;) {
-    if (maps.length > (Math.ceil(width / CHUNK_WIDTH / scale) + 1) * (Math.ceil(height / CHUNK_HEIGHT / scale) + 1)) {
-      maps.shift();
-    } else {
-      break;
-    }
-  }
 }
 
 let canvasRect: DOMRect;
@@ -462,6 +453,7 @@ function handleContextMenu(e: any) {
 }
 
 export type MapOptions = {
+  perf?: boolean;
   canvas: HTMLCanvasElement;
   prefix: string;
   spots: Spot[];
@@ -479,6 +471,12 @@ export class Map {
   private canvas: HTMLCanvasElement;
   private spots: Spot[];
   private frameRequestId: number | null;
+
+  private stats: Stats;
+
+  constructor() {
+    this.stats = new Stats();
+  }
 
   private handleResize() {
     adjustCanvas(this.canvas);
@@ -519,6 +517,11 @@ export class Map {
 
     this.canvas = options.canvas;
     this.spots = options.spots;
+
+    if (options.perf) {
+      this.stats.showPanel(0);
+      document.body.appendChild(this.stats.dom);
+    }
 
     this.init();
   }
@@ -563,13 +566,12 @@ export class Map {
   }
 
   private mainLoop() {
-    if (!isDirty) {
-      if (Math.random() < 0.01) {
-        runCacheGc();
-      }
+    this.stats.begin();
 
+    if (!isDirty) {
       this.frameRequestId = requestAnimationFrame(this.mainLoop.bind(this));
 
+      this.stats.end();
       return;
     }
 
@@ -607,6 +609,8 @@ export class Map {
     pinWidget.draw(globalDrawingContext);
 
     this.frameRequestId = requestAnimationFrame(this.mainLoop.bind(this));
+
+    this.stats.end();
   }
 
   focusPoint(id: number) {
