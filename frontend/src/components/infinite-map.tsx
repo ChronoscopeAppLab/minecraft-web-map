@@ -28,18 +28,23 @@ const InfiniteMap = ({prefix}: Props) => {
       const spots = await fetch('/api/points?dimen=overworld').then((resp) => resp.json());
       setSpots(spots);
 
-      map.setOnScaleChangeCallback(setScale);
-      map.setOnCursorMoveCallback(setPos);
-      map.setDescriptionCallback((spot: Spot | null) => {
-        if (spot === null) {
-          setShowDescription(false);
-        } else {
-          setDescription(spot);
-          setShowDescription(true);
+      map.bind({
+        canvas: canvasRef.current,
+        prefix,
+        spots,
+        callback: {
+          onScaleChange: setScale,
+          onCursorMove: setPos,
+          onHoverSpot: (spot: Spot | null) => {
+            if (spot === null) {
+              setShowDescription(false);
+            } else {
+              setDescription(spot);
+              setShowDescription(true);
+            }
+          }
         }
       });
-
-      map.bind(canvasRef.current, prefix, spots);
       setMap(map);
     })();
 

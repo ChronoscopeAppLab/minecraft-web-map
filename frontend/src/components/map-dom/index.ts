@@ -464,15 +464,23 @@ function handleContextMenu(e: any) {
   onContextMenuSelected(e.target.id, contextMenuX, contextMenuY);
 }
 
+export type MapOptions = {
+  canvas: HTMLCanvasElement;
+  prefix: string;
+  spots: Spot[];
+  callback: {
+    onScaleChange?: (scale: number) => void;
+    onCursorMove?: (pos: {x: number; z: number}) => void;
+    onHoverSpot?: (spot: Spot | null) => void;
+  };
+};
+
 export class Map {
+  private options: MapOptions;
+
   private canvas: HTMLCanvasElement;
-  private prefix: string;
   private spots: Spot[];
   private frameRequestId: number | null;
-
-  private onScaleChangeCallback: (scale: number) => void | null;
-  private onCursorMoveCallback: (pos: {x: number; z: number}) => void | null;
-  private descriptionCallback: (spot: Spot | null) => void;
 
   private handleResize() {
     adjustCanvas(this.canvas);
@@ -481,7 +489,7 @@ export class Map {
 
   private async init() {
     try {
-      chunkRange = await fetch(`${this.prefix}/${dimensionName}/chunk_range.json`).then((resp) => resp.json());
+      chunkRange = await fetch(`${this.options.prefix}/${dimensionName}/chunk_range.json`).then((resp) => resp.json());
     } catch (e) {
       networkError.show();
       return;
@@ -508,10 +516,11 @@ export class Map {
     window.addEventListener('resize', this.handleResize.bind(this));
   }
 
-  public async bind(canvas: HTMLCanvasElement, prefix: string, spots: Spot[]) {
-    this.canvas = canvas;
-    this.prefix = prefix;
-    this.spots = spots;
+  public async bind(options: MapOptions) {
+    this.options = options;
+
+    this.canvas = options.canvas;
+    this.spots = options.spots;
 
     this.init();
   }
@@ -540,7 +549,7 @@ export class Map {
       .setAnimationInterpolator(AnimationInterpolator.accelerateDeaccelerateInterpolator)
       .start();
 
-    this.onScaleChangeCallback?.(nscale);
+    this.options.callback.onScaleChange(nscale);
   }
 
   zoomIn() {
@@ -568,7 +577,7 @@ export class Map {
 
     setInvalidated();
 
-    retriveChunks(this.prefix);
+    retriveChunks(this.options.prefix);
 
     const ctxt = this.canvas.getContext('2d');
 
@@ -627,10 +636,10 @@ export class Map {
     const pointId = points.findIndex((e) => Math.pow(e.spot.x - x, 2) + Math.pow(e.spot.z - y, 2) <= MARK_RADIUS * MARK_RADIUS);
     if (pointId >= 0) {
       this.focusPoint(pointId);
-      this.descriptionCallback?.(null);
+      this.options.callback.onHoverSpot(null);
     } else {
       pinWidget.hide();
-      this.descriptionCallback?.(null);
+      this.options.callback.onHoverSpot(null);
     }
   }
 
@@ -650,7 +659,7 @@ export class Map {
 
     invalidate();
 
-    this.onScaleChangeCallback?.(scale);
+    this.options.callback.onScaleChange(scale);
   }
 
   private dragMap(e: PointingDeviceCoord) {
@@ -665,12 +674,12 @@ export class Map {
     const selecting = typeof point !== 'undefined';
 
     if (selecting) {
-      this.descriptionCallback?.(point.spot);
+      this.options.callback.onHoverSpot(point.spot);
     } else {
-      this.descriptionCallback?.(null);
+      this.options.callback.onHoverSpot(null);
     }
 
-    this.onCursorMoveCallback({x, z: y});
+    this.options.callback.onCursorMove({x, z: y});
 
     if (!isMouseDown) return;
 
@@ -732,7 +741,7 @@ export class Map {
         else if (MAX_SCALE < scale) scale = MAX_SCALE;
         keepCenter(oScale, scale, touchZoomCx, touchZoomCy);
 
-        this.onScaleChangeCallback?.(scale);
+        this.options.callback.onScaleChange(scale);
 
         invalidate();
       }
@@ -760,17 +769,5 @@ export class Map {
     canvas.getContext('2d').imageSmoothingEnabled = false;
 
     invalidate();
-  }
-
-  setOnScaleChangeCallback(callback: (scale: number) => void) {
-    this.onScaleChangeCallback = callback;
-  }
-
-  setOnCursorMoveCallback(callback: (pos: {x: number; z: number}) => void) {
-    this.onCursorMoveCallback = callback;
-  }
-
-  setDescriptionCallback(callback: (description: Spot | null) => void) {
-    this.descriptionCallback = callback;
   }
 }
