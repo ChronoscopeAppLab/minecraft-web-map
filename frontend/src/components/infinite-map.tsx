@@ -30,6 +30,7 @@ const InfiniteMap = ({prefix}: Props) => {
       setSpots(spots);
 
       map.bind({
+        perf: location.search.includes('perf'),
         canvas: canvasRef.current,
         prefix,
         spots,
