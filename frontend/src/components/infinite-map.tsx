@@ -3,6 +3,7 @@ import {useEffect, useRef, useState} from 'react';
 import {Map} from './map-dom';
 import SearchBox from './search-box';
 import {Spot} from '../api/types';
+import Drawer from './drawer';
 
 type Props = {
   prefix: string;
@@ -15,6 +16,7 @@ const InfiniteMap = ({prefix}: Props) => {
   const [description, setDescription] = useState<Pick<Spot, 'name' | 'x' | 'z' | 'detail'>>({x: 0, z: 0, name: '', detail: ''});
   const [showDescription, setShowDescription] = useState(false);
   const [isError, setIsError] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     if (!canvasRef.current) {
@@ -60,7 +62,9 @@ const InfiniteMap = ({prefix}: Props) => {
     <>
       {isError && <div id="error-bar">サーバに接続できないため、一部のリソースの取得に失敗しました。</div>}
 
-      <SearchBox spots={spots} onClickPoint={handleClickPoint} />
+      <SearchBox spots={spots} onClickPoint={handleClickPoint} onOpenMenu={() => setMenuOpen(true)} />
+      <Drawer title="Chronoscoper's World" open={menuOpen} onClose={() => setMenuOpen(false)} />
+
       <canvas ref={canvasRef} id="map" />
       <div id="zoom-buttons">
         <img src="/images/zoom_in.png" id="zoom-in-button" alt="+" onClick={() => map.zoomIn()} />
