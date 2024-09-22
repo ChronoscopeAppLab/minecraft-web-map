@@ -16,6 +16,7 @@ const InfiniteMap = ({prefix}: Props) => {
   const [pos, setPos] = useState({x: 0, z: 0});
   const [description, setDescription] = useState<Pick<Spot, 'name' | 'x' | 'z' | 'detail'>>({x: 0, z: 0, name: '', detail: ''});
   const [showDescription, setShowDescription] = useState(false);
+  const [isError, setIsError] = useState(false);
 
   useEffect(() => {
     if (!canvasRef.current) {
@@ -42,7 +43,8 @@ const InfiniteMap = ({prefix}: Props) => {
               setDescription(spot);
               setShowDescription(true);
             }
-          }
+          },
+          showError: () => setIsError(true)
         }
       });
       setMap(map);
@@ -59,6 +61,8 @@ const InfiniteMap = ({prefix}: Props) => {
 
   return (
     <>
+      {isError && <div id="error-bar">サーバに接続できないため、一部のリソースの取得に失敗しました。</div>}
+
       <SearchBox spots={spots} onClickPoint={handleClickPoint} />
       <canvas ref={canvasRef} id="map" />
       <div id="zoom-buttons">
