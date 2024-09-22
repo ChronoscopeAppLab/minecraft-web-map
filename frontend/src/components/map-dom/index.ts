@@ -105,8 +105,6 @@ let chunkY: number = 0;
 let offsetX: number = 0;
 let offsetY: number = 0;
 
-let chunkRange: number[] = [0, 0, 0, 0];
-
 let scale: number = 1.0;
 let origScale: number = scale;
 let oldDistance: number = 0;
@@ -146,8 +144,6 @@ function getIcon(type: number, isWhite: boolean = false): HTMLImageElement {
 }
 
 let canvasRect: DOMRect;
-
-let endCond: any = {};
 
 let isMouseDown: boolean;
 let isMouseMoved: boolean;
@@ -203,13 +199,6 @@ export class Map {
   }
 
   private async init() {
-    try {
-      chunkRange = await fetch(`${this.options.prefix}/${this.options.dimension}/chunk_range.json`).then((resp) => resp.json());
-    } catch (e) {
-      this.options.callback.showError();
-      return;
-    }
-
     this.adjustCanvas(this.canvas);
 
     this.initMapPosition();
@@ -584,22 +573,6 @@ export class Map {
       globalDrawingContext = new DrawingContext(ctxt, new MapScreenRect(0, 0, this.width, this.height));
     }
 
-    if (this.width > CHUNK_WIDTH * chunkRange[2]) {
-      endCond.chunkX = 0;
-      endCond.offsetX = 0;
-    } else {
-      endCond.chunkX = chunkRange[2] - 1 - Math.floor(this.width / CHUNK_WIDTH);
-      endCond.offsetX = CHUNK_WIDTH - (this.width % CHUNK_WIDTH);
-    }
-
-    if (this.height > CHUNK_HEIGHT * chunkRange[3]) {
-      endCond.chunkY = 0;
-      endCond.offsetY = 0;
-    } else {
-      endCond.chunkY = chunkRange[3] - 1 - Math.floor(this.height / CHUNK_HEIGHT);
-      endCond.offsetY = CHUNK_HEIGHT - (this.height % CHUNK_HEIGHT);
-    }
-
     canvasRect = canvas.getBoundingClientRect();
   }
 
@@ -607,41 +580,25 @@ export class Map {
    描画範囲が画面の範囲を超えている場合に範囲を動かす。 */
   private normalizeChunkOffset() {
     for (;;) {
-      if (chunkX < endCond.chunkX && offsetX >= CHUNK_WIDTH) {
+      if (offsetX >= CHUNK_WIDTH) {
         offsetX -= CHUNK_WIDTH;
         ++chunkX;
-      } else if (chunkX > chunkRange[0] && offsetX < 0) {
+      } else if (offsetX < 0) {
         offsetX += CHUNK_WIDTH;
         --chunkX;
       } else {
-        if (chunkX <= chunkRange[0] && offsetX < 0) {
-          chunkX = chunkRange[0];
-          offsetX = 0;
-        } else if (chunkX >= endCond.chunkX && offsetX > endCond.offsetX) {
-          chunkX = endCond.chunkX;
-          offsetX = endCond.offsetX;
-        }
-
         break;
       }
     }
 
     for (;;) {
-      if (chunkY < endCond.chunkY && offsetY >= CHUNK_HEIGHT) {
+      if (offsetY >= CHUNK_HEIGHT) {
         offsetY -= CHUNK_HEIGHT;
         ++chunkY;
-      } else if (chunkY > chunkRange[1] && offsetY < 0) {
+      } else if (offsetY < 0) {
         offsetY += CHUNK_HEIGHT;
         --chunkY;
       } else {
-        if (chunkY <= chunkRange[1] && offsetY < 0) {
-          chunkY = chunkRange[1];
-          offsetY = 0;
-        } else if (chunkY >= endCond.chunkY && offsetY > endCond.offsetY) {
-          chunkY = endCond.chunkY;
-          offsetY = endCond.offsetY;
-        }
-
         break;
       }
     }
