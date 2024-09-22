@@ -17,7 +17,7 @@ const Map = () => {
   }
 
   const params = new URLSearchParams(window.location.search);
-  const dimension = params.get('dimen') ?? 'overworld';
+  const dimension = params.get('dim') ?? 'overworld';
 
   return (
     <InfiniteMap
