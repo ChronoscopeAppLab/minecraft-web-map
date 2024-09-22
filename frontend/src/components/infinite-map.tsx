@@ -12,8 +12,6 @@ const InfiniteMap = ({prefix}: Props) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [map, setMap] = useState<Map | null>(null);
   const [spots, setSpots] = useState<Spot[]>([]);
-  const [scale, setScale] = useState(1);
-  const [pos, setPos] = useState({x: 0, z: 0});
   const [description, setDescription] = useState<Pick<Spot, 'name' | 'x' | 'z' | 'detail'>>({x: 0, z: 0, name: '', detail: ''});
   const [showDescription, setShowDescription] = useState(false);
   const [isError, setIsError] = useState(false);
@@ -35,8 +33,6 @@ const InfiniteMap = ({prefix}: Props) => {
         prefix,
         spots,
         callback: {
-          onScaleChange: setScale,
-          onCursorMove: setPos,
           onHoverSpot: (spot: Spot | null) => {
             if (spot === null) {
               setShowDescription(false);
@@ -80,10 +76,6 @@ const InfiniteMap = ({prefix}: Props) => {
           </div>
           <div id="description-address">{description.detail}</div>
         </div>
-      </div>
-
-      <div id="map-status">
-        X={pos.x.toString()} Z={pos.z.toString()} Scale={scale.toString()}
       </div>
     </>
   );

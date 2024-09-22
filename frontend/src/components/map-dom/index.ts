@@ -458,8 +458,6 @@ export type MapOptions = {
   prefix: string;
   spots: Spot[];
   callback: {
-    onScaleChange?: (scale: number) => void;
-    onCursorMove?: (pos: {x: number; z: number}) => void;
     onHoverSpot?: (spot: Spot | null) => void;
     showError: () => void;
   };
@@ -549,8 +547,6 @@ export class Map {
     })
       .setAnimationInterpolator(AnimationInterpolator.accelerateDeaccelerateInterpolator)
       .start();
-
-    this.options.callback.onScaleChange(nscale);
   }
 
   zoomIn() {
@@ -660,8 +656,6 @@ export class Map {
     keepCenter(origScale, scale, prevX, prevY);
 
     invalidate();
-
-    this.options.callback.onScaleChange(scale);
   }
 
   private dragMap(e: PointingDeviceCoord) {
@@ -680,8 +674,6 @@ export class Map {
     } else {
       this.options.callback.onHoverSpot(null);
     }
-
-    this.options.callback.onCursorMove({x, z: y});
 
     if (!isMouseDown) return;
 
@@ -742,8 +734,6 @@ export class Map {
         if (scale < MIN_SCALE) scale = MIN_SCALE;
         else if (MAX_SCALE < scale) scale = MAX_SCALE;
         keepCenter(oScale, scale, touchZoomCx, touchZoomCy);
-
-        this.options.callback.onScaleChange(scale);
 
         invalidate();
       }
