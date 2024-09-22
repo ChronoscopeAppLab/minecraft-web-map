@@ -4,13 +4,10 @@ import * as constants from './constants';
 import DrawingContext from './drawing-context';
 import MapScreenRect from './map-screen-rect';
 import NavDrawer from './nav-drawer';
-import * as networkError from './network-error';
 import PinOverlayWidget from './pin-overlay-widget';
 import PointingDeviceCoord from './pointing-device-coord';
 import {isDirty, invalidate, setInvalidated} from './drawing-component';
 import {Spot} from '../../api/types';
-
-type RenderingContext = CanvasRenderingContext2D;
 
 let globalDrawingContext: DrawingContext = null;
 
@@ -27,7 +24,7 @@ class MapChunk {
     this.image.addEventListener('load', invalidate);
   }
 
-  draw(ctxt: RenderingContext) {
+  draw(ctxt: CanvasRenderingContext2D) {
     if (!this.image.complete || this.image.width === 0) {
       return;
     }
@@ -60,7 +57,7 @@ class Waypoint {
     return dX < farX && dY < farY;
   }
 
-  draw(ctxt: RenderingContext, rangeLeft: number, rangeTop: number) {
+  draw(ctxt: CanvasRenderingContext2D, rangeLeft: number, rangeTop: number) {
     if (this.spot.type == 1) {
       ctxt.font = 'bold 24px sans-serif';
       const textWidth = ctxt.measureText(this.spot.name).width;
@@ -472,6 +469,7 @@ export type MapOptions = {
     onScaleChange?: (scale: number) => void;
     onCursorMove?: (pos: {x: number; z: number}) => void;
     onHoverSpot?: (spot: Spot | null) => void;
+    showError: () => void;
   };
 };
 
@@ -491,7 +489,7 @@ export class Map {
     try {
       chunkRange = await fetch(`${this.options.prefix}/${dimensionName}/chunk_range.json`).then((resp) => resp.json());
     } catch (e) {
-      networkError.show();
+      this.options.callback.showError();
       return;
     }
 
