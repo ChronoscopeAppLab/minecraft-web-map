@@ -339,15 +339,6 @@ function showContextMenu(x: number, y: number) {
   menu.classList.remove('invisible');
 }
 
-function hideContextMenu() {
-  const menu = document.getElementById('context-menu');
-  menu.classList.add('invisible');
-}
-
-function contextMenu(e: any) {
-  showContextMenu(e.x, e.y);
-}
-
 let leftOffset: number = 0;
 
 /* cx, cy: 中心として利用する画面上の座標 */
@@ -401,6 +392,8 @@ export type MapOptions = {
   callback: {
     onHoverSpot?: (spot: Spot | null) => void;
     onSelectSpot?: (spot: (Partial<Spot> & Pick<Spot, 'name' | 'x' | 'z' | 'type'>) | null) => void;
+    openContextMenu?: (x: number, y: number) => void;
+    closeContextMenu?: () => void;
     showError: () => void;
   };
 };
@@ -439,13 +432,6 @@ export class Map {
 
     this.setupListners(this.canvas);
     points = this.spots.map((spot: Spot) => new Waypoint(spot));
-
-    const menuItem = document.getElementById('context-menu').querySelectorAll('div');
-    for (let i = 0; i < menuItem.length; ++i) {
-      if (!menuItem[i].classList.contains('disabled')) {
-        menuItem[i].addEventListener('click', this.handleContextMenu.bind(this));
-      }
-    }
 
     window.addEventListener('resize', this.handleResize.bind(this));
   }
@@ -566,7 +552,7 @@ export class Map {
     if (isMouseMoved) return;
 
     this.options.callback.onSelectSpot(null);
-    hideContextMenu();
+    this.options.callback.closeContextMenu();
 
     const x = e.clientX + chunkX * CHUNK_WIDTH + offsetX;
     const y = e.clientY + chunkY * CHUNK_HEIGHT + offsetY;
@@ -696,35 +682,33 @@ export class Map {
     canvas.addEventListener('touchend', this.touchEnd.bind(this));
     canvas.addEventListener('click', this.click.bind(this));
     canvas.addEventListener('wheel', this.wheel.bind(this));
-    canvas.addEventListener('contextmenu', contextMenu);
+    canvas.addEventListener('contextmenu', this.contextMenu.bind(this));
 
     canvas.getContext('2d').imageSmoothingEnabled = false;
 
     invalidate();
   }
 
-  private onContextMenuSelected(id: string, menuX: number, menuY: number) {
-    if (id === 'select-point') {
-      const x = Math.floor(menuX / scale + chunkX * CHUNK_WIDTH + offsetX);
-      const z = Math.floor(menuY / scale + chunkY * CHUNK_HEIGHT + offsetY);
-      pinWidget.showAt(x, z);
-      if (document.body.clientWidth >= 800) {
-        centerizeCoord(x - 210, z);
-      } else {
-        centerizeCoord(x, z);
-      }
-
-      this.options.callback.onSelectSpot({
-        name: '指定したポイント',
-        x: x,
-        z: z,
-        type: 1
-      });
+  focusPosition(px: number, py: number) {
+    const x = Math.floor(px / scale + chunkX * CHUNK_WIDTH + offsetX);
+    const z = Math.floor(py / scale + chunkY * CHUNK_HEIGHT + offsetY);
+    pinWidget.showAt(x, z);
+    if (document.body.clientWidth >= 800) {
+      centerizeCoord(x - 210, z);
+    } else {
+      centerizeCoord(x, z);
     }
+
+    this.options.callback.onSelectSpot({
+      name: '指定したポイント',
+      x: x,
+      z: z,
+      type: 1
+    });
   }
 
-  private handleContextMenu(e: any) {
-    hideContextMenu();
-    this.onContextMenuSelected(e.target.id, contextMenuX, contextMenuY);
+  private contextMenu(e: any) {
+    e.preventDefault();
+    this.options.callback.openContextMenu(e.x, e.y);
   }
 }

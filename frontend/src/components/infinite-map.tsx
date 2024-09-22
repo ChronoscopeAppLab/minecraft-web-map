@@ -5,6 +5,7 @@ import SearchBox from './search-box';
 import {Spot} from '../api/types';
 import Drawer from './drawer';
 import DetailPanel from './detail-panel';
+import ContextMenu from './context-menu';
 
 type Props = {
   prefix: string;
@@ -20,6 +21,8 @@ const InfiniteMap = ({prefix}: Props) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [detail, setDetail] = useState<(Partial<Spot> & Pick<Spot, 'name' | 'x' | 'z' | 'type'>) | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [contextMenuOpen, setContextMenuOpen] = useState(false);
+  const [contextMenuPos, setContextMenuPos] = useState({x: 0, y: 0});
 
   useEffect(() => {
     if (!canvasRef.current) {
@@ -54,6 +57,13 @@ const InfiniteMap = ({prefix}: Props) => {
               setDetailOpen(true);
             }
           },
+          openContextMenu: (x: number, y: number) => {
+            setContextMenuPos({x, y});
+            setContextMenuOpen(true);
+          },
+          closeContextMenu: () => {
+            setContextMenuOpen(false);
+          },
           showError: () => setIsError(true)
         }
       });
@@ -76,6 +86,21 @@ const InfiniteMap = ({prefix}: Props) => {
       <SearchBox spots={spots} onClickPoint={handleClickPoint} onOpenMenu={() => setMenuOpen(true)} />
       <Drawer title="Chronoscoper's World" open={menuOpen} onClose={() => setMenuOpen(false)} />
       <DetailPanel open={detailOpen} spot={detail} />
+      <ContextMenu
+        open={contextMenuOpen}
+        x={contextMenuPos.x}
+        y={contextMenuPos.y}
+        items={[
+          {
+            id: 'select-point',
+            label: '地点を選択',
+            onClick: () => {
+              map?.focusPosition(contextMenuPos.x, contextMenuPos.y);
+              setContextMenuOpen(false);
+            }
+          }
+        ]}
+      />
 
       <canvas ref={canvasRef} id="map" />
       <div id="zoom-buttons">
