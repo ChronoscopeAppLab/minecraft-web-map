@@ -9,6 +9,15 @@ import {isDirty, invalidate, setInvalidated} from './drawing-component';
 import {Spot} from '../../api/types';
 import Stats from 'stats.js';
 
+const CHUNK_WIDTH: number = 512;
+const CHUNK_HEIGHT: number = 512;
+
+const MARK_RADIUS: number = 10;
+const SCALE_ANIMATION_DURATION: number = 500;
+
+const MIN_SCALE = 0.3;
+const MAX_SCALE = 10.0;
+
 let globalDrawingContext: DrawingContext = null;
 
 class MapChunk {
@@ -91,24 +100,11 @@ class Waypoint {
   }
 }
 
-const CHUNK_WIDTH: number = 512;
-const CHUNK_HEIGHT: number = 512;
-
-const MARK_RADIUS: number = 10;
-const SCALE_ANIMATION_DURATION: number = 500;
-
-const MIN_SCALE = 0.3;
-const MAX_SCALE = 10.0;
-
-let maps: MapChunk[] = [];
-let width: number;
-let height: number;
 let chunkX: number = 0;
 let chunkY: number = 0;
 let offsetX: number = 0;
 let offsetY: number = 0;
 
-let points: Waypoint[] = [];
 let chunkRange: number[] = [0, 0, 0, 0];
 
 let scale: number = 1.0;
@@ -123,34 +119,6 @@ let icons = new Array(4).fill(0).map((_) => {
 });
 
 const pinWidget = new PinOverlayWidget();
-
-function internalCenterizeCoord(x: number, y: number) {
-  chunkX = 0;
-  chunkY = 0;
-  offsetX = x - width / 2 / scale;
-  offsetY = y - height / 2 / scale;
-
-  normalizeChunkOffset();
-}
-
-function centerizeCoord(x: number, y: number) {
-  const oldCenterX = chunkX * CHUNK_WIDTH + offsetX + width / 2,
-    oldCenterY = chunkY * CHUNK_HEIGHT + offsetY + height / 2;
-
-  const newCenterX = x,
-    newCenterY = y;
-
-  const origScale = scale;
-
-  new Animator(constants.MOVE_ANIMATION_DURATION, (ratio: number) => {
-    internalCenterizeCoord(oldCenterX + (newCenterX - oldCenterX) * ratio, oldCenterY + (newCenterY - oldCenterY) * ratio);
-    const newScale = origScale - 0.25 + (ratio - 0.5) * (ratio - 0.5);
-    keepCenter(scale, newScale, width / 2, height / 2);
-    scale = newScale;
-
-    invalidate();
-  }).start();
-}
 
 function getIconPath(type: number, isWhite: boolean = false): string {
   if (type < 2 || 3 < type) return;
@@ -181,130 +149,19 @@ let canvasRect: DOMRect;
 
 let endCond: any = {};
 
-function adjustCanvas(canvas: HTMLCanvasElement) {
-  width = canvas.clientWidth;
-  height = canvas.clientHeight;
-
-  canvas.width = width;
-  canvas.height = height;
-
-  const ctxt = canvas.getContext('2d');
-  ctxt.imageSmoothingEnabled = false;
-
-  if (globalDrawingContext == null) {
-    globalDrawingContext = new DrawingContext(ctxt, new MapScreenRect(0, 0, width, height));
-  }
-
-  if (width > CHUNK_WIDTH * chunkRange[2]) {
-    endCond.chunkX = 0;
-    endCond.offsetX = 0;
-  } else {
-    endCond.chunkX = chunkRange[2] - 1 - Math.floor(width / CHUNK_WIDTH);
-    endCond.offsetX = CHUNK_WIDTH - (width % CHUNK_WIDTH);
-  }
-
-  if (height > CHUNK_HEIGHT * chunkRange[3]) {
-    endCond.chunkY = 0;
-    endCond.offsetY = 0;
-  } else {
-    endCond.chunkY = chunkRange[3] - 1 - Math.floor(height / CHUNK_HEIGHT);
-    endCond.offsetY = CHUNK_HEIGHT - (height % CHUNK_HEIGHT);
-  }
-
-  canvasRect = canvas.getBoundingClientRect();
-}
-
 let isMouseDown: boolean;
 let isMouseMoved: boolean;
 let prevX: number;
 let prevY: number;
 
-function dragStart(e: PointingDeviceCoord) {
-  isMouseDown = true;
-  isMouseMoved = false;
-  prevX = e.x - canvasRect.left;
-  prevY = e.y - canvasRect.top;
-}
-
-function mouseDown(e: MouseEvent) {
-  dragStart(PointingDeviceCoord.wrapMouseEvent(e));
-}
-
-/*  0 <= offset_{x,y} < CHUNK_{WIDTH,HEIGHT} になるように調整する。
-   描画範囲が画面の範囲を超えている場合に範囲を動かす。 */
-function normalizeChunkOffset() {
-  for (;;) {
-    if (chunkX < endCond.chunkX && offsetX >= CHUNK_WIDTH) {
-      offsetX -= CHUNK_WIDTH;
-      ++chunkX;
-    } else if (chunkX > chunkRange[0] && offsetX < 0) {
-      offsetX += CHUNK_WIDTH;
-      --chunkX;
-    } else {
-      if (chunkX <= chunkRange[0] && offsetX < 0) {
-        chunkX = chunkRange[0];
-        offsetX = 0;
-      } else if (chunkX >= endCond.chunkX && offsetX > endCond.offsetX) {
-        chunkX = endCond.chunkX;
-        offsetX = endCond.offsetX;
-      }
-
-      break;
-    }
-  }
-
-  for (;;) {
-    if (chunkY < endCond.chunkY && offsetY >= CHUNK_HEIGHT) {
-      offsetY -= CHUNK_HEIGHT;
-      ++chunkY;
-    } else if (chunkY > chunkRange[1] && offsetY < 0) {
-      offsetY += CHUNK_HEIGHT;
-      --chunkY;
-    } else {
-      if (chunkY <= chunkRange[1] && offsetY < 0) {
-        chunkY = chunkRange[1];
-        offsetY = 0;
-      } else if (chunkY >= endCond.chunkY && offsetY > endCond.offsetY) {
-        chunkY = endCond.chunkY;
-        offsetY = endCond.offsetY;
-      }
-
-      break;
-    }
-  }
-}
-
 let leftOffset: number = 0;
 
-/* cx, cy: 中心として利用する画面上の座標 */
-function keepCenter(origScale: number, newScale: number, cx: number, cy: number) {
-  /* 中央の座標を保持しつつ origScale から newScale にサイズを変更したとき，
-       左上の座標は，もとの左上の座標と中央の座標の間の origscale/newScale
-       の割合の位置に移動する */
-
-  /* 1. もとのスケールでの左上からマウスまでの（スケールしてない場合の）距離を
-       x, y それぞれについて求める */
-  const origLenToCenterX = (cx + leftOffset) / origScale;
-  const origLenToCenterY = cy / origScale;
-
-  /* 2. 新たな左上から中央の長さを求める */
-  const newLenToCenterX = origLenToCenterX * (origScale / newScale);
-  const newLenToCenterY = origLenToCenterY * (origScale / newScale);
-
-  /* 3. スケール前後の左上から中央への長さの差を描画オフセットに加える */
-  offsetX += origLenToCenterX - newLenToCenterX;
-  offsetY += origLenToCenterY - newLenToCenterY;
-
-  /* 4. オフセットをチャンクに反映 */
-  normalizeChunkOffset();
-}
-
-function shouldBeWhiteText(hexcolor: string): boolean {
+const shouldBeWhiteText = (hexcolor: string): boolean => {
   var r = parseInt(hexcolor.substring(1, 2), 16);
   var g = parseInt(hexcolor.substring(3, 2), 16);
   var b = parseInt(hexcolor.substring(5, 2), 16);
   return (r * 299 + g * 587 + b * 114) / 1000 < 20;
-}
+};
 
 export type MapOptions = {
   perf?: boolean;
@@ -330,12 +187,18 @@ export class Map {
 
   private stats: Stats;
 
+  private maps: MapChunk[] = [];
+  private points: Waypoint[] = [];
+
+  private width: number;
+  private height: number;
+
   constructor() {
     this.stats = new Stats();
   }
 
   private handleResize() {
-    adjustCanvas(this.canvas);
+    this.adjustCanvas(this.canvas);
     invalidate();
   }
 
@@ -347,14 +210,14 @@ export class Map {
       return;
     }
 
-    adjustCanvas(this.canvas);
+    this.adjustCanvas(this.canvas);
 
     this.initMapPosition();
 
     this.frameRequestId = requestAnimationFrame(this.mainLoop.bind(this));
 
     this.setupListners(this.canvas);
-    points = this.spots.map((spot: Spot) => new Waypoint(spot));
+    this.points = this.spots.map((spot: Spot) => new Waypoint(spot));
 
     window.addEventListener('resize', this.handleResize.bind(this));
   }
@@ -389,7 +252,7 @@ export class Map {
 
     new Animator(SCALE_ANIMATION_DURATION, (ratio: number) => {
       const ns = oscale + (nscale - oscale) * ratio;
-      keepCenter(scale, ns, width / 2, height / 2);
+      this.keepCenter(scale, ns, this.width / 2, this.height / 2);
       scale = ns;
 
       invalidate();
@@ -426,28 +289,28 @@ export class Map {
 
     const ctxt = this.canvas.getContext('2d');
 
-    ctxt.clearRect(0, 0, width, height);
+    ctxt.clearRect(0, 0, this.width, this.height);
 
-    for (let i = 0; i < maps.length; ++i) {
-      const imageChunk = maps.shift();
+    for (let i = 0; i < this.maps.length; ++i) {
+      const imageChunk = this.maps.shift();
       imageChunk.draw(ctxt);
-      maps.push(imageChunk);
+      this.maps.push(imageChunk);
     }
 
     /* スケールする前の範囲（points.json の内容をそのまま使うため） */
     const rangeLeft = chunkX * CHUNK_WIDTH + offsetX;
-    const rangeRight = rangeLeft + width / scale;
+    const rangeRight = rangeLeft + this.width / scale;
     const rangeTop = chunkY * CHUNK_HEIGHT + offsetY;
-    const rangeBottom = rangeTop + height / scale;
+    const rangeBottom = rangeTop + this.height / scale;
 
     // XXX
     globalDrawingContext.setCenterCoord(rangeLeft + (rangeRight - rangeLeft) / 2, rangeTop + (rangeBottom - rangeTop) / 2);
     globalDrawingContext.setSize(rangeRight - rangeLeft, rangeBottom - rangeTop);
     globalDrawingContext.setMapScale(scale);
 
-    for (let i = 0; i < points.length; ++i) {
-      if (points[i].isInBox(rangeTop, rangeRight, rangeBottom, rangeLeft)) {
-        points[i].draw(ctxt, rangeLeft, rangeTop);
+    for (let i = 0; i < this.points.length; ++i) {
+      if (this.points[i].isInBox(rangeTop, rangeRight, rangeBottom, rangeLeft)) {
+        this.points[i].draw(ctxt, rangeLeft, rangeTop);
       }
     }
 
@@ -459,13 +322,13 @@ export class Map {
   }
 
   focusPoint(id: number) {
-    const point = points[id];
+    const point = this.points[id];
     pinWidget.showAt(point.spot.x, point.spot.z);
 
     if (document.body.clientWidth >= 800) {
-      centerizeCoord(point.spot.x - 210, point.spot.z);
+      this.centerizeCoord(point.spot.x - 210, point.spot.z);
     } else {
-      centerizeCoord(point.spot.x, point.spot.z);
+      this.centerizeCoord(point.spot.x, point.spot.z);
     }
 
     this.options.callback.onSelectSpot(point.spot);
@@ -480,7 +343,7 @@ export class Map {
     const x = e.clientX + chunkX * CHUNK_WIDTH + offsetX;
     const y = e.clientY + chunkY * CHUNK_HEIGHT + offsetY;
 
-    const pointId = points.findIndex((e) => Math.pow(e.spot.x - x, 2) + Math.pow(e.spot.z - y, 2) <= MARK_RADIUS * MARK_RADIUS);
+    const pointId = this.points.findIndex((e) => Math.pow(e.spot.x - x, 2) + Math.pow(e.spot.z - y, 2) <= MARK_RADIUS * MARK_RADIUS);
     if (pointId >= 0) {
       this.focusPoint(pointId);
       this.options.callback.onHoverSpot(null);
@@ -502,7 +365,7 @@ export class Map {
       scale = MAX_SCALE;
     }
 
-    keepCenter(origScale, scale, prevX, prevY);
+    this.keepCenter(origScale, scale, prevX, prevY);
 
     invalidate();
   }
@@ -513,7 +376,7 @@ export class Map {
     const x = Math.floor(e.x / scale + chunkX * CHUNK_WIDTH + offsetX);
     const y = Math.floor(e.y / scale + chunkY * CHUNK_HEIGHT + offsetY);
 
-    const point = points.find(
+    const point = this.points.find(
       (e: Waypoint) => Math.pow(e.spot.x - x, 2) + Math.pow(e.spot.z - y, 2) <= (MARK_RADIUS * MARK_RADIUS) / (scale * scale)
     );
     const selecting = typeof point !== 'undefined';
@@ -537,7 +400,7 @@ export class Map {
       offsetY += moveY;
     }
 
-    normalizeChunkOffset();
+    this.normalizeChunkOffset();
 
     invalidate();
 
@@ -556,7 +419,7 @@ export class Map {
   }
 
   private touchStart(e: TouchEvent) {
-    dragStart(PointingDeviceCoord.wrapTouchEvent(e));
+    this.dragStart(PointingDeviceCoord.wrapTouchEvent(e));
   }
 
   private touchMove(e: TouchEvent) {
@@ -582,7 +445,7 @@ export class Map {
         scale = (origScale * distance) / oldDistance;
         if (scale < MIN_SCALE) scale = MIN_SCALE;
         else if (MAX_SCALE < scale) scale = MAX_SCALE;
-        keepCenter(oScale, scale, touchZoomCx, touchZoomCy);
+        this.keepCenter(oScale, scale, touchZoomCx, touchZoomCy);
 
         invalidate();
       }
@@ -596,7 +459,7 @@ export class Map {
   }
 
   private setupListners(canvas: HTMLCanvasElement) {
-    canvas.addEventListener('mousedown', mouseDown);
+    canvas.addEventListener('mousedown', this.mouseDown.bind(this));
     canvas.addEventListener('mousemove', this.mouseMove.bind(this));
     canvas.addEventListener('mouseup', this.mouseUp.bind(this));
     canvas.addEventListener('mouseleave', this.mouseUp.bind(this));
@@ -617,9 +480,9 @@ export class Map {
     const z = Math.floor(py / scale + chunkY * CHUNK_HEIGHT + offsetY);
     pinWidget.showAt(x, z);
     if (document.body.clientWidth >= 800) {
-      centerizeCoord(x - 210, z);
+      this.centerizeCoord(x - 210, z);
     } else {
-      centerizeCoord(x, z);
+      this.centerizeCoord(x, z);
     }
 
     this.options.callback.onSelectSpot({
@@ -638,18 +501,18 @@ export class Map {
   private retriveChunks() {
     let chunksInRange = [];
     for (let x = chunkX; ; ++x) {
-      if (((x - chunkX - 1) * CHUNK_WIDTH - offsetX) * scale >= width) break;
+      if (((x - chunkX - 1) * CHUNK_WIDTH - offsetX) * scale >= this.width) break;
 
       for (let y = chunkY; ; ++y) {
-        if (((y - chunkY - 1) * CHUNK_HEIGHT - offsetY) * scale >= height) break;
+        if (((y - chunkY - 1) * CHUNK_HEIGHT - offsetY) * scale >= this.height) break;
 
         chunksInRange.push([x, y]);
       }
     }
 
     chunksInRange.forEach((e) => {
-      if (typeof maps.find((f) => f.x === e[0] && f.y === e[1]) === 'undefined') {
-        maps.push(new MapChunk(this.options.prefix, this.options.dimension, e[0], e[1]));
+      if (typeof this.maps.find((f) => f.x === e[0] && f.y === e[1]) === 'undefined') {
+        this.maps.push(new MapChunk(this.options.prefix, this.options.dimension, e[0], e[1]));
       }
     });
   }
@@ -666,5 +529,144 @@ export class Map {
         chunkX = -1;
         chunkY = -1;
     }
+  }
+
+  private dragStart(e: PointingDeviceCoord) {
+    isMouseDown = true;
+    isMouseMoved = false;
+    prevX = e.x - canvasRect.left;
+    prevY = e.y - canvasRect.top;
+  }
+
+  private mouseDown(e: MouseEvent) {
+    this.dragStart(PointingDeviceCoord.wrapMouseEvent(e));
+  }
+
+  private internalCenterizeCoord(x: number, y: number) {
+    chunkX = 0;
+    chunkY = 0;
+    offsetX = x - this.width / 2 / scale;
+    offsetY = y - this.height / 2 / scale;
+
+    this.normalizeChunkOffset();
+  }
+
+  private centerizeCoord(x: number, y: number) {
+    const oldCenterX = chunkX * CHUNK_WIDTH + offsetX + this.width / 2,
+      oldCenterY = chunkY * CHUNK_HEIGHT + offsetY + this.height / 2;
+
+    const newCenterX = x,
+      newCenterY = y;
+
+    const origScale = scale;
+
+    new Animator(constants.MOVE_ANIMATION_DURATION, (ratio: number) => {
+      this.internalCenterizeCoord(oldCenterX + (newCenterX - oldCenterX) * ratio, oldCenterY + (newCenterY - oldCenterY) * ratio);
+      const newScale = origScale - 0.25 + (ratio - 0.5) * (ratio - 0.5);
+      this.keepCenter(scale, newScale, this.width / 2, this.height / 2);
+      scale = newScale;
+
+      invalidate();
+    }).start();
+  }
+
+  private adjustCanvas(canvas: HTMLCanvasElement) {
+    this.width = canvas.clientWidth;
+    this.height = canvas.clientHeight;
+
+    canvas.width = this.width;
+    canvas.height = this.height;
+
+    const ctxt = canvas.getContext('2d');
+    ctxt.imageSmoothingEnabled = false;
+
+    if (globalDrawingContext == null) {
+      globalDrawingContext = new DrawingContext(ctxt, new MapScreenRect(0, 0, this.width, this.height));
+    }
+
+    if (this.width > CHUNK_WIDTH * chunkRange[2]) {
+      endCond.chunkX = 0;
+      endCond.offsetX = 0;
+    } else {
+      endCond.chunkX = chunkRange[2] - 1 - Math.floor(this.width / CHUNK_WIDTH);
+      endCond.offsetX = CHUNK_WIDTH - (this.width % CHUNK_WIDTH);
+    }
+
+    if (this.height > CHUNK_HEIGHT * chunkRange[3]) {
+      endCond.chunkY = 0;
+      endCond.offsetY = 0;
+    } else {
+      endCond.chunkY = chunkRange[3] - 1 - Math.floor(this.height / CHUNK_HEIGHT);
+      endCond.offsetY = CHUNK_HEIGHT - (this.height % CHUNK_HEIGHT);
+    }
+
+    canvasRect = canvas.getBoundingClientRect();
+  }
+
+  /*  0 <= offset_{x,y} < CHUNK_{WIDTH,HEIGHT} になるように調整する。
+   描画範囲が画面の範囲を超えている場合に範囲を動かす。 */
+  private normalizeChunkOffset() {
+    for (;;) {
+      if (chunkX < endCond.chunkX && offsetX >= CHUNK_WIDTH) {
+        offsetX -= CHUNK_WIDTH;
+        ++chunkX;
+      } else if (chunkX > chunkRange[0] && offsetX < 0) {
+        offsetX += CHUNK_WIDTH;
+        --chunkX;
+      } else {
+        if (chunkX <= chunkRange[0] && offsetX < 0) {
+          chunkX = chunkRange[0];
+          offsetX = 0;
+        } else if (chunkX >= endCond.chunkX && offsetX > endCond.offsetX) {
+          chunkX = endCond.chunkX;
+          offsetX = endCond.offsetX;
+        }
+
+        break;
+      }
+    }
+
+    for (;;) {
+      if (chunkY < endCond.chunkY && offsetY >= CHUNK_HEIGHT) {
+        offsetY -= CHUNK_HEIGHT;
+        ++chunkY;
+      } else if (chunkY > chunkRange[1] && offsetY < 0) {
+        offsetY += CHUNK_HEIGHT;
+        --chunkY;
+      } else {
+        if (chunkY <= chunkRange[1] && offsetY < 0) {
+          chunkY = chunkRange[1];
+          offsetY = 0;
+        } else if (chunkY >= endCond.chunkY && offsetY > endCond.offsetY) {
+          chunkY = endCond.chunkY;
+          offsetY = endCond.offsetY;
+        }
+
+        break;
+      }
+    }
+  }
+
+  /* cx, cy: 中心として利用する画面上の座標 */
+  private keepCenter(origScale: number, newScale: number, cx: number, cy: number) {
+    /* 中央の座標を保持しつつ origScale から newScale にサイズを変更したとき，
+       左上の座標は，もとの左上の座標と中央の座標の間の origscale/newScale
+       の割合の位置に移動する */
+
+    /* 1. もとのスケールでの左上からマウスまでの（スケールしてない場合の）距離を
+       x, y それぞれについて求める */
+    const origLenToCenterX = (cx + leftOffset) / origScale;
+    const origLenToCenterY = cy / origScale;
+
+    /* 2. 新たな左上から中央の長さを求める */
+    const newLenToCenterX = origLenToCenterX * (origScale / newScale);
+    const newLenToCenterY = origLenToCenterY * (origScale / newScale);
+
+    /* 3. スケール前後の左上から中央への長さの差を描画オフセットに加える */
+    offsetX += origLenToCenterX - newLenToCenterX;
+    offsetY += origLenToCenterY - newLenToCenterY;
+
+    /* 4. オフセットをチャンクに反映 */
+    this.normalizeChunkOffset();
   }
 }
