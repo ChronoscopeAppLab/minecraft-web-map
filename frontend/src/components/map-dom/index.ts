@@ -1,13 +1,13 @@
-import AnimationInterpolator from './animationInterpolator';
+import AnimationInterpolator from './animation-interpolator';
 import Animator from './animator';
 import * as constants from './constants';
-import DrawingContext from './drawingContext';
-import MapScreenRect from './mapScreenRect';
-import NavDrawer from './navDrawer';
-import * as networkError from './networkError';
-import PinOverlayWidget from './pinOverlayWidget';
-import PointingDeviceCoord from './pointingDeviceCoord';
-import {isDirty, invalidate, setInvalidated} from './drawingComponent';
+import DrawingContext from './drawing-context';
+import MapScreenRect from './map-screen-rect';
+import NavDrawer from './nav-drawer';
+import * as networkError from './network-error';
+import PinOverlayWidget from './pin-overlay-widget';
+import PointingDeviceCoord from './pointing-device-coord';
+import {isDirty, invalidate, setInvalidated} from './drawing-component';
 import {Spot} from '../../api/types';
 
 type RenderingContext = CanvasRenderingContext2D;

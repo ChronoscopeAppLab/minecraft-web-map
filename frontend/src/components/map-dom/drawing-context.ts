@@ -1,4 +1,4 @@
-import MapScreenRect from './mapScreenRect';
+import MapScreenRect from './map-screen-rect';
 import Rect from './rect';
 
 export default class DrawingContext {

@@ -1,4 +1,4 @@
-import DrawingContext from './drawingContext';
+import DrawingContext from './drawing-context';
 
 export let isDirty = true;
 
