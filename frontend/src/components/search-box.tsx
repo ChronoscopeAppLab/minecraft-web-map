@@ -5,6 +5,7 @@ import {Spot} from '../api/types';
 type Props = {
   spots: Spot[];
   onClickPoint?: (pointId: number) => void;
+  onOpenMenu?: () => void;
 };
 
 function getIconPath(type: number, isWhite: boolean = false): string {
@@ -17,7 +18,7 @@ function getIconPath(type: number, isWhite: boolean = false): string {
   }
 }
 
-const SearchBox = ({spots, onClickPoint}: Props) => {
+const SearchBox = ({spots, onClickPoint, onOpenMenu}: Props) => {
   const [searchMode, setSearchMode] = useState(false);
   const [query, setQuery] = useState('');
 
@@ -58,7 +59,7 @@ const SearchBox = ({spots, onClickPoint}: Props) => {
   return (
     <>
       <div id="search-bar">
-        <img src="/images/menu.png" id="menu-button" className={`button ${searchMode ? 'hidden' : ''}`} />
+        <img src="/images/menu.png" id="menu-button" className={`button ${searchMode ? 'hidden' : ''}`} onClick={() => onOpenMenu?.()} />
         <img src="/images/arrow_left.png" id="search-back-button" className={`button ${searchMode ? '' : 'hidden'}`} onClick={hideSearchList} />
         <input
           id="search-box"

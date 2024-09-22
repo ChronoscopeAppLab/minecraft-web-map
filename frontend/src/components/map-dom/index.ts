@@ -3,7 +3,6 @@ import Animator from './animator';
 import * as constants from './constants';
 import DrawingContext from './drawing-context';
 import MapScreenRect from './map-screen-rect';
-import NavDrawer from './nav-drawer';
 import PinOverlayWidget from './pin-overlay-widget';
 import PointingDeviceCoord from './pointing-device-coord';
 import {isDirty, invalidate, setInvalidated} from './drawing-component';
@@ -497,8 +496,6 @@ export class Map {
 
     this.setupListners(this.canvas);
     points = this.spots.map((spot: Spot) => new Waypoint(spot));
-
-    new NavDrawer().attach(document.getElementById('menu-button'), document.getElementById('menu'), document.getElementById('menu-modal-back'));
 
     const menuItem = document.getElementById('context-menu').querySelectorAll('div');
     for (let i = 0; i < menuItem.length; ++i) {
