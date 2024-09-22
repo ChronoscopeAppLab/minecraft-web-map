@@ -344,27 +344,6 @@ function hideContextMenu() {
   menu.classList.add('invisible');
 }
 
-function onContextMenuSelected(id: string, menuX: number, menuY: number) {
-  if (id === 'select-point') {
-    hideDetailPanel();
-    const x = Math.floor(menuX / scale + chunkX * CHUNK_WIDTH + offsetX);
-    const z = Math.floor(menuY / scale + chunkY * CHUNK_HEIGHT + offsetY);
-    pinWidget.showAt(x, z);
-    if (document.body.clientWidth >= 800) {
-      centerizeCoord(x - 210, z);
-    } else {
-      centerizeCoord(x, z);
-    }
-
-    showDetailPanel({
-      name: '指定したポイント',
-      x: x,
-      z: z,
-      type: 1
-    });
-  }
-}
-
 function contextMenu(e: any) {
   showContextMenu(e.x, e.y);
 }
@@ -411,44 +390,7 @@ function shouldBeWhiteText(hexcolor: string): boolean {
   var r = parseInt(hexcolor.substring(1, 2), 16);
   var g = parseInt(hexcolor.substring(3, 2), 16);
   var b = parseInt(hexcolor.substring(5, 2), 16);
-  return (r * 299 + g * 587 + b * 114) / 1000 < 128;
-}
-
-let detailPanelShown: boolean = false;
-
-function showDetailPanel(spot: Partial<Spot> & Pick<Spot, 'name' | 'x' | 'z' | 'type'>) {
-  detailPanelShown = true;
-  document.getElementById('detail-panel-title').innerText = spot['name'];
-  document.getElementById('detail-panel-subtitle').innerText = 'X=' + spot['x'] + ', Z=' + spot['z'];
-  document.getElementById('detail-panel-detail').innerText = spot['detail'] ?? '';
-  if (spot.image) {
-    document.getElementById('detail-panel').classList.remove('no-image');
-    document.getElementById('detail-panel-image').style.backgroundImage = 'url("../images/points/' + spot['image'] + '")';
-  } else {
-    document.getElementById('detail-panel').classList.add('no-image');
-  }
-  const detailOverview = document.getElementById('detail-panel-overview');
-  if (spot.color) {
-    detailOverview.style.backgroundColor = spot['color'];
-    detailOverview.style.color = shouldBeWhiteText(spot['color']) ? '#fff' : '#000';
-  } else {
-    detailOverview.style.backgroundColor = 'rgb(0, 98, 255)';
-    detailOverview.style.color = '#fff';
-  }
-  document.getElementById('detail-panel').classList.remove('hidden');
-}
-
-function hideDetailPanel() {
-  if (!detailPanelShown) return true;
-  detailPanelShown = false;
-  document.getElementById('detail-panel').classList.add('hidden');
-
-  document.getElementById('detail-panel').classList.add('compact-detail-panel');
-}
-
-function handleContextMenu(e: any) {
-  hideContextMenu();
-  onContextMenuSelected(e.target.id, contextMenuX, contextMenuY);
+  return (r * 299 + g * 587 + b * 114) / 1000 < 20;
 }
 
 export type MapOptions = {
@@ -458,6 +400,7 @@ export type MapOptions = {
   spots: Spot[];
   callback: {
     onHoverSpot?: (spot: Spot | null) => void;
+    onSelectSpot?: (spot: (Partial<Spot> & Pick<Spot, 'name' | 'x' | 'z' | 'type'>) | null) => void;
     showError: () => void;
   };
 };
@@ -500,7 +443,7 @@ export class Map {
     const menuItem = document.getElementById('context-menu').querySelectorAll('div');
     for (let i = 0; i < menuItem.length; ++i) {
       if (!menuItem[i].classList.contains('disabled')) {
-        menuItem[i].addEventListener('click', handleContextMenu);
+        menuItem[i].addEventListener('click', this.handleContextMenu.bind(this));
       }
     }
 
@@ -616,13 +559,13 @@ export class Map {
       centerizeCoord(point.spot.x, point.spot.z);
     }
 
-    showDetailPanel(point.spot);
+    this.options.callback.onSelectSpot(point.spot);
   }
 
   private click(e: MouseEvent) {
     if (isMouseMoved) return;
 
-    hideDetailPanel();
+    this.options.callback.onSelectSpot(null);
     hideContextMenu();
 
     const x = e.clientX + chunkX * CHUNK_WIDTH + offsetX;
@@ -758,5 +701,30 @@ export class Map {
     canvas.getContext('2d').imageSmoothingEnabled = false;
 
     invalidate();
+  }
+
+  private onContextMenuSelected(id: string, menuX: number, menuY: number) {
+    if (id === 'select-point') {
+      const x = Math.floor(menuX / scale + chunkX * CHUNK_WIDTH + offsetX);
+      const z = Math.floor(menuY / scale + chunkY * CHUNK_HEIGHT + offsetY);
+      pinWidget.showAt(x, z);
+      if (document.body.clientWidth >= 800) {
+        centerizeCoord(x - 210, z);
+      } else {
+        centerizeCoord(x, z);
+      }
+
+      this.options.callback.onSelectSpot({
+        name: '指定したポイント',
+        x: x,
+        z: z,
+        type: 1
+      });
+    }
+  }
+
+  private handleContextMenu(e: any) {
+    hideContextMenu();
+    this.onContextMenuSelected(e.target.id, contextMenuX, contextMenuY);
   }
 }
