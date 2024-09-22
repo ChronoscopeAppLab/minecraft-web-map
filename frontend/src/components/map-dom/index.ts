@@ -16,11 +16,11 @@ class MapChunk {
   y: number;
   image: HTMLImageElement;
 
-  constructor(prefix: string, x: number, y: number) {
+  constructor(prefix: string, dimension: string, x: number, y: number) {
     this.x = x;
     this.y = y;
     this.image = new Image();
-    this.image.src = `${prefix}/${dimensionName}/${x},${y}.png`;
+    this.image.src = `${prefix}/${dimension}/${x},${y}.png`;
     this.image.addEventListener('load', invalidate);
   }
 
@@ -124,23 +124,6 @@ let icons = new Array(4).fill(0).map((_) => {
 
 const pinWidget = new PinOverlayWidget();
 
-function getDimension(): number {
-  const params = new URLSearchParams(window.location.search);
-  let dim = params.get('dimen');
-  switch (dim) {
-    case 'overworld':
-      return 0;
-    case 'nether':
-      return 1;
-    case 'end':
-      return 2;
-  }
-  return 0;
-}
-
-const dimensionNumber = getDimension();
-const dimensionName = ['overworld', 'nether', 'end'][dimensionNumber];
-
 function internalCenterizeCoord(x: number, y: number) {
   chunkX = 0;
   chunkY = 0;
@@ -192,25 +175,6 @@ function getIcon(type: number, isWhite: boolean = false): HTMLImageElement {
   icons[type][isWhite ? 0 : 1] = icon;
 
   return null;
-}
-
-function retriveChunks(prefix: string) {
-  let chunksInRange = [];
-  for (let x = chunkX; ; ++x) {
-    if (((x - chunkX - 1) * CHUNK_WIDTH - offsetX) * scale >= width) break;
-
-    for (let y = chunkY; ; ++y) {
-      if (((y - chunkY - 1) * CHUNK_HEIGHT - offsetY) * scale >= height) break;
-
-      chunksInRange.push([x, y]);
-    }
-  }
-
-  chunksInRange.forEach((e) => {
-    if (typeof maps.find((f) => f.x === e[0] && f.y === e[1]) === 'undefined') {
-      maps.push(new MapChunk(prefix, e[0], e[1]));
-    }
-  });
 }
 
 let canvasRect: DOMRect;
@@ -310,35 +274,6 @@ function normalizeChunkOffset() {
   }
 }
 
-let contextMenuX: number;
-let contextMenuY: number;
-
-function showContextMenu(x: number, y: number) {
-  contextMenuX = x;
-  contextMenuY = y;
-  const menu = document.getElementById('context-menu');
-  if (width - x < menu.clientWidth) {
-    menu.classList.add('left');
-    menu.style.left = 'unset';
-    menu.style.right = width - x + 'px';
-  } else {
-    menu.classList.remove('left');
-    menu.style.left = x + 'px';
-    menu.style.right = 'unset';
-  }
-  if (height - y < menu.clientHeight) {
-    menu.classList.add('up');
-    menu.style.top = 'unset';
-    menu.style.bottom = height - y + 'px';
-  } else {
-    menu.classList.remove('up');
-    menu.style.top = y + 'px';
-    menu.style.bottom = 'unset';
-  }
-
-  menu.classList.remove('invisible');
-}
-
 let leftOffset: number = 0;
 
 /* cx, cy: 中心として利用する画面上の座標 */
@@ -364,19 +299,6 @@ function keepCenter(origScale: number, newScale: number, cx: number, cy: number)
   normalizeChunkOffset();
 }
 
-function initMapPosition() {
-  if (dimensionNumber === 0) {
-    chunkX = -3;
-    chunkY = 3;
-  } else {
-    chunkX = -1;
-    chunkY = -1;
-  }
-
-  offsetX = 0;
-  offsetY = 0;
-}
-
 function shouldBeWhiteText(hexcolor: string): boolean {
   var r = parseInt(hexcolor.substring(1, 2), 16);
   var g = parseInt(hexcolor.substring(3, 2), 16);
@@ -388,6 +310,7 @@ export type MapOptions = {
   perf?: boolean;
   canvas: HTMLCanvasElement;
   prefix: string;
+  dimension: 'overworld' | 'nether' | 'end';
   spots: Spot[];
   callback: {
     onHoverSpot?: (spot: Spot | null) => void;
@@ -418,7 +341,7 @@ export class Map {
 
   private async init() {
     try {
-      chunkRange = await fetch(`${this.options.prefix}/${dimensionName}/chunk_range.json`).then((resp) => resp.json());
+      chunkRange = await fetch(`${this.options.prefix}/${this.options.dimension}/chunk_range.json`).then((resp) => resp.json());
     } catch (e) {
       this.options.callback.showError();
       return;
@@ -426,7 +349,7 @@ export class Map {
 
     adjustCanvas(this.canvas);
 
-    initMapPosition();
+    this.initMapPosition();
 
     this.frameRequestId = requestAnimationFrame(this.mainLoop.bind(this));
 
@@ -499,7 +422,7 @@ export class Map {
 
     setInvalidated();
 
-    retriveChunks(this.options.prefix);
+    this.retriveChunks();
 
     const ctxt = this.canvas.getContext('2d');
 
@@ -710,5 +633,38 @@ export class Map {
   private contextMenu(e: any) {
     e.preventDefault();
     this.options.callback.openContextMenu(e.x, e.y);
+  }
+
+  private retriveChunks() {
+    let chunksInRange = [];
+    for (let x = chunkX; ; ++x) {
+      if (((x - chunkX - 1) * CHUNK_WIDTH - offsetX) * scale >= width) break;
+
+      for (let y = chunkY; ; ++y) {
+        if (((y - chunkY - 1) * CHUNK_HEIGHT - offsetY) * scale >= height) break;
+
+        chunksInRange.push([x, y]);
+      }
+    }
+
+    chunksInRange.forEach((e) => {
+      if (typeof maps.find((f) => f.x === e[0] && f.y === e[1]) === 'undefined') {
+        maps.push(new MapChunk(this.options.prefix, this.options.dimension, e[0], e[1]));
+      }
+    });
+  }
+
+  private initMapPosition() {
+    switch (this.options.dimension) {
+      case 'overworld':
+        offsetX = 0;
+        offsetY = 0;
+      case 'nether':
+        chunkX = -3;
+        chunkY = 3;
+      case 'end':
+        chunkX = -1;
+        chunkY = -1;
+    }
   }
 }
