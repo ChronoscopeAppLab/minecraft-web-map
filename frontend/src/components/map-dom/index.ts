@@ -8,6 +8,7 @@ import PointingDeviceCoord from './pointing-device-coord';
 import {isDirty, invalidate, setInvalidated} from './drawing-component';
 import {Spot} from '../../api/types';
 import Stats from 'stats.js';
+import MapRenderer from './map-renderer';
 
 const CHUNK_WIDTH: number = 512;
 const CHUNK_HEIGHT: number = 512;
@@ -189,6 +190,8 @@ export class Map {
   private width: number;
   private height: number;
 
+  private renderer: MapRenderer;
+
   constructor() {
     this.stats = new Stats();
   }
@@ -222,6 +225,12 @@ export class Map {
       document.body.appendChild(this.stats.dom);
     }
 
+    this.renderer = new MapRenderer(`${options.prefix}/overworld`, this.canvas.clientWidth, this.canvas.clientHeight, 1, 0, 0);
+    this.canvas.width = this.canvas.clientWidth;
+    this.canvas.height = this.canvas.clientHeight;
+
+    this.renderer.update();
+
     this.init();
   }
 
@@ -244,6 +253,9 @@ export class Map {
       this.keepCenter(scale, ns, this.width / 2, this.height / 2);
       scale = ns;
 
+      this.renderer.setScale(scale);
+      this.renderer.update();
+
       invalidate();
     })
       .setAnimationInterpolator(AnimationInterpolator.accelerateDeaccelerateInterpolator)
@@ -265,26 +277,32 @@ export class Map {
   private mainLoop() {
     this.stats.begin();
 
-    if (!isDirty) {
-      this.frameRequestId = requestAnimationFrame(this.mainLoop.bind(this));
+    // if (!isDirty) {
+    //   this.frameRequestId = requestAnimationFrame(this.mainLoop.bind(this));
 
-      this.stats.end();
-      return;
-    }
+    //   this.stats.end();
+    //   return;
+    // }
 
     setInvalidated();
-
-    this.retriveChunks();
 
     const ctxt = this.canvas.getContext('2d');
 
     ctxt.clearRect(0, 0, this.width, this.height);
 
-    for (let i = 0; i < this.maps.length; ++i) {
-      const imageChunk = this.maps.shift();
-      imageChunk.draw(ctxt);
-      this.maps.push(imageChunk);
-    }
+    this.renderer.renderTo(ctxt);
+
+    // this.retriveChunks();
+
+    // const ctxt = this.canvas.getContext('2d');
+
+    // ctxt.clearRect(0, 0, this.width, this.height);
+
+    // for (let i = 0; i < this.maps.length; ++i) {
+    //   const imageChunk = this.maps.shift();
+    //   imageChunk.draw(ctxt);
+    //   this.maps.push(imageChunk);
+    // }
 
     /* スケールする前の範囲（points.json の内容をそのまま使うため） */
     const rangeLeft = chunkX * CHUNK_WIDTH + offsetX;
@@ -292,10 +310,10 @@ export class Map {
     const rangeTop = chunkY * CHUNK_HEIGHT + offsetY;
     const rangeBottom = rangeTop + this.height / scale;
 
-    // XXX
-    globalDrawingContext.setCenterCoord(rangeLeft + (rangeRight - rangeLeft) / 2, rangeTop + (rangeBottom - rangeTop) / 2);
-    globalDrawingContext.setSize(rangeRight - rangeLeft, rangeBottom - rangeTop);
-    globalDrawingContext.setMapScale(scale);
+    // // XXX
+    // globalDrawingContext.setCenterCoord(rangeLeft + (rangeRight - rangeLeft) / 2, rangeTop + (rangeBottom - rangeTop) / 2);
+    // globalDrawingContext.setSize(rangeRight - rangeLeft, rangeBottom - rangeTop);
+    // globalDrawingContext.setMapScale(scale);
 
     for (let i = 0; i < this.points.length; ++i) {
       if (this.points[i].isInBox(rangeTop, rangeRight, rangeBottom, rangeLeft)) {
