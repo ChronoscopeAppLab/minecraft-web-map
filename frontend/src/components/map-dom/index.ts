@@ -197,8 +197,14 @@ export class Map {
   }
 
   private handleResize() {
-    this.adjustCanvas(this.canvas);
-    invalidate();
+    // this.adjustCanvas(this.canvas);
+    // invalidate();
+
+    this.canvas.width =  this.canvas.clientWidth;
+    this.canvas.height = this.canvas.clientHeight;
+
+    this.renderer.setScreenSize(this.canvas.clientWidth, this.canvas.clientHeight);
+    this.renderer.update();
   }
 
   private async init() {
