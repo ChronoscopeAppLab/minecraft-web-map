@@ -1,6 +1,6 @@
 {
     "name": "minecraft_web_map_frontend",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "description": "Front-end for Minecraft Map Viewer",
     "main": "src/index.ts",
     "scripts": {
