@@ -38,7 +38,7 @@ const InfiniteMap = ({prefix, dimension}: Props) => {
 
       map.bind({
         perf: location.search.includes('perf'),
-        canvas: canvasRef.current,
+        canvas: canvasRef.current!,
         dimension,
         prefix,
         spots,
@@ -51,7 +51,7 @@ const InfiniteMap = ({prefix, dimension}: Props) => {
               setShowDescription(true);
             }
           },
-          onSelectSpot: (spot: Spot | null) => {
+          onSelectSpot: (spot: (Partial<Spot> & Pick<Spot, 'name' | 'x' | 'z' | 'type'>) | null) => {
             if (spot === null) {
               setDetailOpen(false);
             } else {
@@ -106,9 +106,9 @@ const InfiniteMap = ({prefix, dimension}: Props) => {
 
       <canvas ref={canvasRef} id="map" />
       <div id="zoom-buttons">
-        <img src="/images/zoom_in.png" id="zoom-in-button" alt="+" onClick={() => map.zoomIn()} />
-        <img src="/images/trip_origin.png" id="zoom-orig-button" alt="0" onClick={() => map.zoomOrig()} />
-        <img src="/images/zoom_out.png" id="zoom-out-button" alt="-" onClick={() => map.zoomOut()} />
+        <img src="/images/zoom_in.png" id="zoom-in-button" alt="+" onClick={() => map?.zoomIn()} />
+        <img src="/images/trip_origin.png" id="zoom-orig-button" alt="0" onClick={() => map?.zoomOrig()} />
+        <img src="/images/zoom_out.png" id="zoom-out-button" alt="-" onClick={() => map?.zoomOut()} />
       </div>
 
       <div className={`description-card ${showDescription ? '' : 'hidden'}`} id="description-card">

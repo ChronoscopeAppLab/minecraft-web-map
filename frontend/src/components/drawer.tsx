@@ -7,7 +7,7 @@ type Props = {
 const Drawer = ({title, open, onClose}: Props) => {
   return (
     <>
-      <div id="menu-modal-back" className={open ? '' : 'hidden'} onClick={() => onClose()}></div>
+      <div id="menu-modal-back" className={open ? '' : 'hidden'} onClick={() => onClose?.()}></div>
       <div id="menu" className={open ? '' : 'hidden'}>
         <div id="menu-header">
           <div id="menu-title">{title}</div>

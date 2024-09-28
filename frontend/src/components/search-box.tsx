@@ -16,6 +16,8 @@ function getIconPath(type: number, isWhite: boolean = false): string {
   } else if (type === 3) {
     return isWhite ? '/images/subway_white.png' : '/images/subway.png';
   }
+
+  throw new Error('Invalid type');
 }
 
 const SearchBox = ({spots, onClickPoint, onOpenMenu}: Props) => {

@@ -1,10 +1,10 @@
 import Rect from './rect';
 
 export default class MapScreenRect implements Rect {
-  private top: number;
-  private right: number;
-  private bottom: number;
-  private left: number;
+  private top: number = 0;
+  private right: number = 0;
+  private bottom: number = 0;
+  private left: number = 0;
 
   private cx: number;
   private cy: number;

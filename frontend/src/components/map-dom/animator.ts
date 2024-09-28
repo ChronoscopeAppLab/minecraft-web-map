@@ -9,7 +9,7 @@ export default class Animator {
   delay: number;
   reverse: boolean;
   finishCallback: any;
-  startTime: number;
+  startTime: number = 0;
 
   constructor(duration: number, callback: (ratio: number) => void) {
     this.duration = duration;

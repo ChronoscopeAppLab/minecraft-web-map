@@ -18,7 +18,7 @@ const SCALE_ANIMATION_DURATION: number = 500;
 const MIN_SCALE = 0.3;
 const MAX_SCALE = 10.0;
 
-let globalDrawingContext: DrawingContext = null;
+let globalDrawingContext: DrawingContext | null = null;
 
 class MapChunk {
   x: number;
@@ -118,25 +118,32 @@ let icons = new Array(4).fill(0).map((_) => {
 
 const pinWidget = new PinOverlayWidget();
 
-function getIconPath(type: number, isWhite: boolean = false): string {
-  if (type < 2 || 3 < type) return;
+function getIconPath(type: number, isWhite: boolean = false): string | null {
+  if (type < 2 || 3 < type) {
+    return null;
+  }
 
   if (type === 2) {
     return isWhite ? '/images/train_white.png' : '/images/train.png';
   } else if (type === 3) {
     return isWhite ? '/images/subway_white.png' : '/images/subway.png';
   }
+
+  throw new Error('Invalid type');
 }
 
-function getIcon(type: number, isWhite: boolean = false): HTMLImageElement {
+function getIcon(type: number, isWhite: boolean = false): HTMLImageElement | null {
   let icon = new Image();
   if (icons[type][isWhite ? 0 : 1]) {
     const icon = icons[type][isWhite ? 0 : 1];
-    if (icon.complete && icon.width !== 0) return icons[type][isWhite ? 0 : 1];
-    else return null;
+    if (icon.complete && icon.width !== 0) {
+      return icons[type][isWhite ? 0 : 1];
+    } else {
+      return null;
+    }
   }
 
-  icon.src = getIconPath(type, isWhite);
+  icon.src = getIconPath(type, isWhite)!;
   icon.addEventListener('load', invalidate);
   icons[type][isWhite ? 0 : 1] = icon;
 
@@ -175,37 +182,37 @@ export type MapOptions = {
 };
 
 export class Map {
-  private options: MapOptions;
+  private options: MapOptions | null = null;
 
-  private canvas: HTMLCanvasElement;
-  private spots: Spot[];
-  private frameRequestId: number | null;
+  private canvas: HTMLCanvasElement | null = null;
+  private spots: Spot[] = [];
+  private frameRequestId: number | null = null;
 
   private stats: Stats;
 
   private maps: MapChunk[] = [];
   private points: Waypoint[] = [];
 
-  private width: number;
-  private height: number;
+  private width: number = 0;
+  private height: number = 0;
 
   constructor() {
     this.stats = new Stats();
   }
 
   private handleResize() {
-    this.adjustCanvas(this.canvas);
+    this.adjustCanvas(this.canvas!);
     invalidate();
   }
 
   private async init() {
-    this.adjustCanvas(this.canvas);
+    this.adjustCanvas(this.canvas!);
 
     this.initMapPosition();
 
     this.frameRequestId = requestAnimationFrame(this.mainLoop.bind(this));
 
-    this.setupListners(this.canvas);
+    this.setupListners(this.canvas!);
     this.points = this.spots.map((spot: Spot) => new Waypoint(spot));
 
     window.addEventListener('resize', this.handleResize.bind(this));
@@ -276,12 +283,12 @@ export class Map {
 
     this.retriveChunks();
 
-    const ctxt = this.canvas.getContext('2d');
+    const ctxt = this.canvas!.getContext('2d')!;
 
     ctxt.clearRect(0, 0, this.width, this.height);
 
     for (let i = 0; i < this.maps.length; ++i) {
-      const imageChunk = this.maps.shift();
+      const imageChunk = this.maps.shift()!;
       imageChunk.draw(ctxt);
       this.maps.push(imageChunk);
     }
@@ -293,9 +300,9 @@ export class Map {
     const rangeBottom = rangeTop + this.height / scale;
 
     // XXX
-    globalDrawingContext.setCenterCoord(rangeLeft + (rangeRight - rangeLeft) / 2, rangeTop + (rangeBottom - rangeTop) / 2);
-    globalDrawingContext.setSize(rangeRight - rangeLeft, rangeBottom - rangeTop);
-    globalDrawingContext.setMapScale(scale);
+    globalDrawingContext!.setCenterCoord(rangeLeft + (rangeRight - rangeLeft) / 2, rangeTop + (rangeBottom - rangeTop) / 2);
+    globalDrawingContext!.setSize(rangeRight - rangeLeft, rangeBottom - rangeTop);
+    globalDrawingContext!.setMapScale(scale);
 
     for (let i = 0; i < this.points.length; ++i) {
       if (this.points[i].isInBox(rangeTop, rangeRight, rangeBottom, rangeLeft)) {
@@ -303,7 +310,7 @@ export class Map {
       }
     }
 
-    pinWidget.draw(globalDrawingContext);
+    pinWidget.draw(globalDrawingContext!);
 
     this.frameRequestId = requestAnimationFrame(this.mainLoop.bind(this));
 
@@ -320,14 +327,14 @@ export class Map {
       this.centerizeCoord(point.spot.x, point.spot.z);
     }
 
-    this.options.callback.onSelectSpot(point.spot);
+    this.options!.callback.onSelectSpot?.(point.spot);
   }
 
   private click(e: MouseEvent) {
     if (isMouseMoved) return;
 
-    this.options.callback.onSelectSpot(null);
-    this.options.callback.closeContextMenu();
+    this.options!.callback.onSelectSpot?.(null);
+    this.options!.callback.closeContextMenu?.();
 
     const x = e.clientX + chunkX * CHUNK_WIDTH + offsetX;
     const y = e.clientY + chunkY * CHUNK_HEIGHT + offsetY;
@@ -335,10 +342,10 @@ export class Map {
     const pointId = this.points.findIndex((e) => Math.pow(e.spot.x - x, 2) + Math.pow(e.spot.z - y, 2) <= MARK_RADIUS * MARK_RADIUS);
     if (pointId >= 0) {
       this.focusPoint(pointId);
-      this.options.callback.onHoverSpot(null);
+      this.options!.callback.onHoverSpot?.(null);
     } else {
       pinWidget.hide();
-      this.options.callback.onHoverSpot(null);
+      this.options!.callback.onHoverSpot?.(null);
     }
   }
 
@@ -371,9 +378,9 @@ export class Map {
     const selecting = typeof point !== 'undefined';
 
     if (selecting) {
-      this.options.callback.onHoverSpot(point.spot);
+      this.options!.callback.onHoverSpot?.(point.spot);
     } else {
-      this.options.callback.onHoverSpot(null);
+      this.options!.callback.onHoverSpot?.(null);
     }
 
     if (!isMouseDown) return;
@@ -459,7 +466,7 @@ export class Map {
     canvas.addEventListener('wheel', this.wheel.bind(this));
     canvas.addEventListener('contextmenu', this.contextMenu.bind(this));
 
-    canvas.getContext('2d').imageSmoothingEnabled = false;
+    canvas.getContext('2d')!.imageSmoothingEnabled = false;
 
     invalidate();
   }
@@ -474,7 +481,7 @@ export class Map {
       this.centerizeCoord(x, z);
     }
 
-    this.options.callback.onSelectSpot({
+    this.options!.callback.onSelectSpot?.({
       name: '指定したポイント',
       x: x,
       z: z,
@@ -484,7 +491,7 @@ export class Map {
 
   private contextMenu(e: any) {
     e.preventDefault();
-    this.options.callback.openContextMenu(e.x, e.y);
+    this.options!.callback.openContextMenu?.(e.x, e.y);
   }
 
   private retriveChunks() {
@@ -501,13 +508,13 @@ export class Map {
 
     chunksInRange.forEach((e) => {
       if (typeof this.maps.find((f) => f.x === e[0] && f.y === e[1]) === 'undefined') {
-        this.maps.push(new MapChunk(this.options.prefix, this.options.dimension, e[0], e[1]));
+        this.maps.push(new MapChunk(this.options!.prefix, this.options!.dimension, e[0], e[1]));
       }
     });
   }
 
   private initMapPosition() {
-    switch (this.options.dimension) {
+    switch (this.options?.dimension) {
       case 'overworld':
         offsetX = 0;
         offsetY = 0;
@@ -566,7 +573,7 @@ export class Map {
     canvas.width = this.width;
     canvas.height = this.height;
 
-    const ctxt = canvas.getContext('2d');
+    const ctxt = canvas.getContext('2d')!;
     ctxt.imageSmoothingEnabled = false;
 
     if (globalDrawingContext == null) {

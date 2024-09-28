@@ -1,9 +1,10 @@
 import {useEffect, useState} from 'react';
 
 import InfiniteMap from '../../components/infinite-map';
+import {InitialState} from '../../api/types';
 
 const Map = () => {
-  const [initialState, setInitialState] = useState(null);
+  const [initialState, setInitialState] = useState<InitialState | null>(null);
 
   useEffect(() => {
     (async () => {
