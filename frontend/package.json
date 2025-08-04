@@ -22,12 +22,12 @@
     "homepage": "https://github.com/ChronoscopeAppLab/minecraft-web-map#readme",
     "dependencies": {
         "react": "^19.1.0",
-        "react-dom": "^19.1.0",
+        "react-dom": "^19.1.1",
         "stats.js": "^0.17.0"
     },
     "devDependencies": {
         "@types/react": "^19.1.8",
-        "@types/react-dom": "^19.1.6",
+        "@types/react-dom": "^19.1.7",
         "@types/stats": "^0.16.30",
         "copy-webpack-plugin": "^13.0.0",
         "css-loader": "^7.1.2",
