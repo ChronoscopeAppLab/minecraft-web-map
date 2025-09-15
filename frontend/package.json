@@ -26,7 +26,7 @@
         "stats.js": "^0.17.0"
     },
     "devDependencies": {
-        "@types/react": "^19.1.8",
+        "@types/react": "^19.1.13",
         "@types/react-dom": "^19.1.7",
         "@types/stats": "^0.16.30",
         "copy-webpack-plugin": "^13.0.1",
