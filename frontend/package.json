@@ -38,7 +38,7 @@
         "style-loader": "^4.0.0",
         "ts-loader": "^9.5.4",
         "typescript": "^5.9.2",
-        "typescript-language-server": "^4.4.1",
+        "typescript-language-server": "^5.0.0",
         "webpack": "^5.101.3",
         "webpack-cli": "^6.0.1"
     }
