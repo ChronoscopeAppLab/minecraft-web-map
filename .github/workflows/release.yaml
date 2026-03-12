@@ -27,7 +27,7 @@ jobs:
         EOF
       env:
         TAG_NAME: ${{ github.event.release.tag_name }}
-    - uses: docker/build-push-action@v6
+    - uses: docker/build-push-action@v7
       with:
         context: .
         tags: ${{ steps.tags.outputs.tags }}
