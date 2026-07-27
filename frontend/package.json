@@ -37,7 +37,7 @@
         "sass-loader": "^16.0.7",
         "style-loader": "^4.0.0",
         "ts-loader": "^9.5.7",
-        "typescript": "^5.9.3",
+        "typescript": "^7.0.2",
         "typescript-language-server": "^5.2.0",
         "webpack": "^5.106.1",
         "webpack-cli": "^7.0.2"
